@@ -3,9 +3,12 @@ from sqlalchemy import ForeignKey, String, DateTime, func
 from sqlalchemy import Enum as SQLEnum
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from models.users import Users
 from src.core.database import Base
+
+if TYPE_CHECKING:
+    from src.models.users import Users
 
 
 class TaskStatus(Enum):
@@ -25,10 +28,10 @@ class Tasks(Base):
         SQLEnum(TaskStatus), default=TaskStatus.NEW, nullable=False, index=True
     )
     executor_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), ondelete="CASCADE", index=True
+        ForeignKey("users.id"), on_delete="CASCADE", index=True
     )
     author_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), ondelete="CASCADE", index=True
+        ForeignKey("users.id"), on_delete="CASCADE", index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()

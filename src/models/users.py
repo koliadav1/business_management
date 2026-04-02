@@ -3,10 +3,12 @@ from sqlalchemy import String, DateTime, func
 from sqlalchemy import Enum as SQLEnum
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, TYPE_CHECKING
 
-from src.models.tasks import Tasks
 from src.core.database import Base
+
+if TYPE_CHECKING:
+    from src.models import Tasks
 
 
 class UserRole(Enum):
