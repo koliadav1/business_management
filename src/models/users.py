@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, DateTime, func
 from sqlalchemy import Enum as SQLEnum
+from fastapi_users.db import SQLAlchemyBaseUserTable
 from datetime import datetime
 from enum import Enum
 from typing import List, TYPE_CHECKING
@@ -8,7 +9,7 @@ from typing import List, TYPE_CHECKING
 from src.core.database import Base
 
 if TYPE_CHECKING:
-    from src.models import Tasks
+    from src.models.tasks import Tasks
 
 
 class UserRole(Enum):
@@ -18,7 +19,7 @@ class UserRole(Enum):
     EMPLOYEE = "employee"
 
 
-class Users(Base):
+class Users(SQLAlchemyBaseUserTable[int], Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -37,8 +38,8 @@ class Users(Base):
     )
 
     assigned_tasks: Mapped[List["Tasks"]] = relationship(
-        back_populates="executor", foreign_keys=["Tasks.executor_id"]
+        back_populates="executor", foreign_keys="Tasks.executor_id"
     )
     created_tasks: Mapped[List["Tasks"]] = relationship(
-        back_populates="author", foreign_keys=["Tasks.author_id"]
+        back_populates="author", foreign_keys="Tasks.author_id"
     )

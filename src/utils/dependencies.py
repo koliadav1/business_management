@@ -1,12 +1,24 @@
 from collections.abc import AsyncGenerator
+from fastapi import Depends
+from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.models.users import Users
 from src.core.database import session_maker
+from src.services.user_manager import UserManager
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Зависимость для получения сессии бд
     """
     async with session_maker() as session:
         yield session
+
+
+async def get_user_db(session: AsyncSession = Depends(get_db_session)):
+    yield SQLAlchemyUserDatabase(session, Users)
+
+
+async def get_user_manager(user_db=Depends(get_user_db)):
+    yield UserManager(user_db)

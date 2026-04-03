@@ -28,10 +28,10 @@ class Tasks(Base):
         SQLEnum(TaskStatus), default=TaskStatus.NEW, nullable=False, index=True
     )
     executor_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), on_delete="CASCADE", index=True
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     author_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), on_delete="CASCADE", index=True
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
