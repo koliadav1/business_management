@@ -7,7 +7,7 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 
-from src.schemas.users import UserCreate, UserRead
+from src.schemas.users import UserCreate, UserRead, UserUpdate
 from src.models.users import Users
 from src.core.database import engine
 from src.core.config import settings
@@ -44,6 +44,16 @@ app.include_router(
 )
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+app.include_router(
+    fastapi_users.get_reset_password_router(),
     prefix="/auth",
     tags=["auth"],
 )
