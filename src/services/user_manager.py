@@ -7,18 +7,18 @@ from fastapi_users import (
 )
 
 from src.schemas.users import UserCreate
-from src.models.users import Users
+from src.models.users import User
 from src.core.config import settings
 
 
-class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
+class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     reset_password_token_secret = settings.SECRET
     verification_token_secret = settings.SECRET
 
     async def validate_password(
         self,
         password: str,
-        user: Union[UserCreate, Users],
+        user: Union[UserCreate, User],
     ) -> None:
         if len(password) < 8:
             raise InvalidPasswordException(
