@@ -1,6 +1,5 @@
 from src.core.database import Base
-from .tasks import Tasks
-from .users import Users
+from .tasks import Task
+from .users import User
 
-
-__all__ = ["Base", "Tasks", "Users"]
+__all__ = ["Base", "Task", "User"]

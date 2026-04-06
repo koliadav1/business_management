@@ -18,7 +18,6 @@ class TaskService:
         description: str,
         deadline: datetime,
         executor_id: int,
-        author_id: int,
         current_user: User,
         uow: IUnitOfWork,
     ) -> Task:
@@ -39,7 +38,7 @@ class TaskService:
                 description=description,
                 deadline=deadline,
                 executor_id=executor_id,
-                author_id=author_id,
+                author_id=current_user.id,
                 status=TaskStatus.NEW,
             )
 
@@ -54,7 +53,7 @@ class TaskService:
         uow: IUnitOfWork,
     ) -> Task:
         """
-        Назначить или переназначить исполнителя задачи.
+        Переназначить исполнителя задачи.
         Только для роли admin
         """
         async with uow:
@@ -186,10 +185,10 @@ class TaskService:
 
     async def get_user_tasks(
         self,
-        user_id: int,
-        current_user: User,
         uow: IUnitOfWork,
+        current_user: User,
         status: TaskStatus | None = None,
+        user_id: int | None = None,
     ) -> List[Task]:
         """
         Получить задачи пользователя
@@ -197,14 +196,12 @@ class TaskService:
         Обычный пользователь видит только свои задачи
         """
         async with uow:
-            if (
-                current_user.role != UserRole.ADMIN
-                and current_user.id != user_id
-            ):
-                raise ForbiddenError("You can only view your tasks")
-
-            tasks = await uow.tasks_repo.get_by_executor(user_id)
-
+            if current_user.role == UserRole.ADMIN and user_id:
+                tasks = await uow.tasks_repo.get_by_executor(user_id)
+            elif not user_id:
+                tasks = await uow.tasks_repo.get_by_executor(current_user.id)
+            elif user_id and current_user.role != UserRole.ADMIN:
+                raise ForbiddenError("You can only see your tasks")
             if status:
                 tasks = [task for task in tasks if task.status == status]
 

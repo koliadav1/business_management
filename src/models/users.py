@@ -9,7 +9,7 @@ from typing import List, TYPE_CHECKING
 from src.core.database import Base
 
 if TYPE_CHECKING:
-    from src.models.tasks import Tasks
+    from src.models.tasks import Task
 
 
 class UserRole(Enum):
@@ -37,9 +37,9 @@ class User(SQLAlchemyBaseUserTable[int], Base):
         DateTime, server_default=func.now(), server_onupdate=func.now()
     )
 
-    assigned_tasks: Mapped[List["Tasks"]] = relationship(
-        back_populates="executor", foreign_keys="Tasks.executor_id"
+    assigned_tasks: Mapped[List["Task"]] = relationship(
+        back_populates="executor", foreign_keys="Task.executor_id"
     )
-    created_tasks: Mapped[List["Tasks"]] = relationship(
-        back_populates="author", foreign_keys="Tasks.author_id"
+    created_tasks: Mapped[List["Task"]] = relationship(
+        back_populates="author", foreign_keys="Task.author_id"
     )

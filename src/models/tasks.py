@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from src.core.database import Base
 
 if TYPE_CHECKING:
-    from src.models.users import Users
+    from src.models.users import User
 
 
 class TaskStatus(Enum):
@@ -40,9 +40,9 @@ class Task(Base):
         DateTime, server_default=func.now(), server_onupdate=func.now()
     )
 
-    executor: Mapped["Users"] = relationship(
+    executor: Mapped["User"] = relationship(
         back_populates="assigned_tasks", foreign_keys=[executor_id]
     )
-    author: Mapped["Users"] = relationship(
+    author: Mapped["User"] = relationship(
         back_populates="created_tasks", foreign_keys=[author_id]
     )
