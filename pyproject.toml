@@ -1,16 +1,16 @@
 [project]
 name = "business-management-system"
-version = "0.1.0"
+version = "1.0.1"
 description = "Система управления бизнесом"
 requires-python = ">=3.13"
 dependencies = [
     "alembic==1.18.4",
     "asyncpg==0.31.0",
     "fastapi==0.135.2",
+    "fastapi-users==15.0.5",
     "pydantic-settings==2.13.1",
     "SQLAlchemy==2.0.48",
     "uvicorn==0.42.0",
-    "fastapi-users==15.0.5",
     "passlib==1.7.4",
     "python-jose==3.5.0",
 ]
