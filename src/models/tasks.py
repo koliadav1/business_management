@@ -23,7 +23,7 @@ class Task(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     description: Mapped[str] = mapped_column(String(1024))
-    deadline: Mapped[datetime] = mapped_column(DateTime)
+    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[TaskStatus] = mapped_column(
         SQLEnum(TaskStatus), default=TaskStatus.NEW, nullable=False, index=True
     )
@@ -34,10 +34,12 @@ class Task(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
+        DateTime(timezone=True), server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), server_onupdate=func.now()
+        DateTime(timezone=True),
+        server_default=func.now(),
+        server_onupdate=func.now(),
     )
 
     executor: Mapped["User"] = relationship(
