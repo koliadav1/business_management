@@ -30,11 +30,16 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         result = await self._session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_team_members(self, team_id: int) -> List[User]:
-        """Получить всех членов команды"""
-        result = await self._session.execute(
-            select(User).where(User.team_id == team_id)
-        )
+    async def get_team_members(
+        self, team_id: int, user_role: UserRole | None = None
+    ) -> List[User]:
+        """Получить всех членов команды с фильтрацией по ролям"""
+        query = select(User).where(User.team_id == team_id)
+
+        if user_role:
+            query = query.where(User.role == user_role)
+
+        result = await self._session.execute(query)
         return result.scalars().all()
 
     async def get_user_team(self, user_id: int) -> Team | None:
@@ -106,10 +111,17 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         await self._session.flush()
         return True
 
-    async def is_member(self, team_id: int, user_id: int) -> bool:
-        """Является ли пользователь членом команды"""
+    async def is_member(
+        self, team_id: int, user_id: int, user_role: UserRole | None = None
+    ) -> bool:
+        """
+        Является ли пользователь членом команды
+        с дополнительной проверкой по роли
+        """
         query = select(User).where(
             and_(User.id == user_id, User.team_id == team_id)
         )
+        if user_role:
+            query = query.where(User.role == user_role)
         result = await self._session.execute(query)
         return result.scalar_one_or_none() is not None

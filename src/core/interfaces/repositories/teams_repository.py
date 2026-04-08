@@ -18,8 +18,10 @@ class ITeamsRepository(IRepository[Team]):
         pass
 
     @abstractmethod
-    async def get_team_members(self, team_id: int) -> List[User]:
-        """Получить всех членов команды"""
+    async def get_team_members(
+        self, team_id: int, user_role: UserRole | None = None
+    ) -> List[User]:
+        """Получить всех членов команды с фильтрацией по ролям"""
         pass
 
     @abstractmethod
@@ -50,6 +52,11 @@ class ITeamsRepository(IRepository[Team]):
         pass
 
     @abstractmethod
-    async def is_member(self, team_id: int, user_id: int) -> bool:
-        """Является ли пользователь членом команды"""
+    async def is_member(
+        self, team_id: int, user_id: int, user_role: UserRole | None = None
+    ) -> bool:
+        """
+        Является ли пользователь членом команды
+        с дополнительной проверкой по роли
+        """
         pass
