@@ -1,0 +1,115 @@
+from typing import List
+from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from src.models.users import User, UserRole
+from src.core.interfaces.repositories.teams_repository import ITeamsRepository
+from src.models.teams import Team
+from .base_repository import SQLRepository
+
+
+class TeamsRepository(SQLRepository[Team], ITeamsRepository):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, Team)
+
+    async def get_by_name(self, name: str) -> Team | None:
+        """Получить команду по названию"""
+        result = await self._session.execute(
+            select(Team).where(Team.name == name)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_team_with_members(self, team_id: int) -> Team | None:
+        """Получить команду и ее членов"""
+        query = (
+            select(Team)
+            .where(Team.id == team_id)
+            .options(selectinload(Team.members))
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_team_members(self, team_id: int) -> List[User]:
+        """Получить всех членов команды"""
+        result = await self._session.execute(
+            select(User).where(User.team_id == team_id)
+        )
+        return result.scalars().all()
+
+    async def get_user_team(self, user_id: int) -> Team | None:
+        """Получить команду пользователя"""
+        query = (
+            select(User)
+            .where(User.id == user_id)
+            .options(selectinload(User.team))
+        )
+        result = await self._session.execute(query)
+        user = result.scalar_one_or_none()
+        if user and user.team:
+            return user.team
+        return None
+
+    async def add_member(
+        self,
+        team_id: int,
+        user_id: int,
+        user_role: UserRole = UserRole.EMPLOYEE,
+    ) -> bool:
+        """Добавить пользователя в команду"""
+        user = await self._session.get(User, user_id)
+        if not user:
+            return False
+        if user.team_id is not None:
+            return False
+        if user.role == UserRole.ADMIN:
+            return False
+
+        team = await self._session.get(Team, team_id)
+        if not team:
+            return False
+
+        user.team_id = team_id
+        user.role = user_role
+        await self._session.flush()
+        return True
+
+    async def remove_member(self, team_id: int, user_id: int) -> bool:
+        """Убрать пользователя из команды"""
+        user = await self._session.get(User, user_id)
+        if not user or user.team_id != team_id:
+            return False
+
+        user.team_id = None
+
+        if user.role != UserRole.ADMIN:
+            user.role = UserRole.USER
+
+        await self._session.flush()
+        return True
+
+    async def update_member_role(
+        self, team_id: int, user_id: int, new_role: UserRole
+    ) -> bool:
+        """Изменить роль члена команды"""
+        if new_role not in [UserRole.MANAGER, UserRole.EMPLOYEE]:
+            return False
+
+        user = await self._session.get(User, user_id)
+        if not user or user.team_id != team_id:
+            return False
+
+        if user.role == UserRole.ADMIN:
+            return False
+
+        user.role = new_role
+        await self._session.flush()
+        return True
+
+    async def is_member(self, team_id: int, user_id: int) -> bool:
+        """Является ли пользователь членом команды"""
+        query = select(User).where(
+            and_(User.id == user_id, User.team_id == team_id)
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none() is not None
