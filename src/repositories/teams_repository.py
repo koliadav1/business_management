@@ -57,59 +57,28 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
 
     async def add_member(
         self,
-        team_id: int,
-        user_id: int,
+        team: Team,
+        user: User,
         user_role: UserRole = UserRole.EMPLOYEE,
-    ) -> bool:
+    ) -> None:
         """Добавить пользователя в команду"""
-        user = await self._session.get(User, user_id)
-        if not user:
-            return False
-        if user.team_id is not None:
-            return False
-        if user.role == UserRole.ADMIN:
-            return False
-
-        team = await self._session.get(Team, team_id)
-        if not team:
-            return False
-
-        user.team_id = team_id
+        user.team_id = team.id
         user.role = user_role
         await self._session.flush()
-        return True
 
-    async def remove_member(self, team_id: int, user_id: int) -> bool:
+    async def remove_member(self, user: User) -> None:
         """Убрать пользователя из команды"""
-        user = await self._session.get(User, user_id)
-        if not user or user.team_id != team_id:
-            return False
-
         user.team_id = None
 
         if user.role != UserRole.ADMIN:
             user.role = UserRole.USER
 
         await self._session.flush()
-        return True
 
-    async def update_member_role(
-        self, team_id: int, user_id: int, new_role: UserRole
-    ) -> bool:
+    async def update_member_role(self, user: User, new_role: UserRole) -> None:
         """Изменить роль члена команды"""
-        if new_role not in [UserRole.MANAGER, UserRole.EMPLOYEE]:
-            return False
-
-        user = await self._session.get(User, user_id)
-        if not user or user.team_id != team_id:
-            return False
-
-        if user.role == UserRole.ADMIN:
-            return False
-
         user.role = new_role
         await self._session.flush()
-        return True
 
     async def is_member(
         self, team_id: int, user_id: int, user_role: UserRole | None = None
