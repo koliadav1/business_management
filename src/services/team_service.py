@@ -38,6 +38,10 @@ class TeamService:
 
             team = Team(name=name, description=description)
             created_team = await uow.teams_repo.add(team)
+
+            await uow.teams_repo.add_member(
+                created_team, current_user, UserRole.ADMIN
+            )
         return created_team
 
     async def get_team(self, uow: IUnitOfWork, team_id: int) -> Team:
@@ -57,7 +61,7 @@ class TeamService:
     ) -> Team:
         """
         Получение информации о команде и ее участниках.
-        Только для участников команды и администраторов
+        Только для участников команды
         """
         async with uow:
             team = await uow.teams_repo.get_team_with_members(team_id)
@@ -89,17 +93,17 @@ class TeamService:
     ) -> List[User]:
         """
         Получить участников команды.
-        Только для участников команды и администраторов
+        Только для участников команды
         """
         async with uow:
+            team = await uow.teams_repo.get(team_id)
+            if not team:
+                raise TeamNotFoundError(f"Team with id {team_id} not found")
+
             if not await self._can_view_team_members(
                 uow, team_id, current_user
             ):
                 raise ForbiddenError("You can't view team members")
-
-            team = await uow.teams_repo.get(team_id)
-            if not team:
-                raise TeamNotFoundError(f"Team with id {team_id} not found")
 
             members = await uow.teams_repo.get_team_members(team_id, role)
         return members
@@ -119,7 +123,7 @@ class TeamService:
         async with uow:
             if not await self._can_manage_team(uow, team_id, current_user):
                 raise ForbiddenError(
-                    "Only team admins and managers can add memebers"
+                    "Only team admins and managers can add members"
                 )
 
             team = await uow.teams_repo.get(team_id)
@@ -152,7 +156,7 @@ class TeamService:
         async with uow:
             if not await self._can_manage_team(uow, team_id, current_user):
                 raise ForbiddenError(
-                    "Only team admins and managers can remove memebers"
+                    "Only team admins and managers can remove members"
                 )
 
             team = await uow.teams_repo.get(team_id)
@@ -230,9 +234,7 @@ class TeamService:
 
             await uow.teams_repo.delete(team_id)
 
-    async def get_all_teams(
-        self, uow: IUnitOfWork, current_user: User
-    ) -> List[Team]:
+    async def get_all_teams(self, uow: IUnitOfWork) -> List[Team]:
         """Получить список всех команд"""
         async with uow:
             return await uow.teams_repo.get_all()
@@ -240,9 +242,6 @@ class TeamService:
     async def _can_view_team_members(
         self, uow: IUnitOfWork, team_id: int, current_user: User
     ):
-        if current_user.role == UserRole.ADMIN:
-            return True
-
         if await uow.teams_repo.is_member(team_id, current_user.id):
             return True
 
