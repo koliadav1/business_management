@@ -8,7 +8,9 @@ from src.core.exceptions import (
     ForbiddenError,
     InvalidTransitionError,
     TaskNotFoundError,
+    TaskNotInTeamError,
     UserNotFoundError,
+    UserNotInTeamErorr,
 )
 from src.services.task_service import TaskService
 from src.models.users import User
@@ -54,6 +56,8 @@ async def create_task(
         raise HTTPException(status_code=403, detail=str(e))
     except UserNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except UserNotInTeamErorr as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 
 @router.get(
@@ -84,6 +88,8 @@ async def get_tasks(
         )
         return tasks
     except ForbiddenError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except UserNotInTeamErorr as e:
         raise HTTPException(status_code=403, detail=str(e))
 
 
@@ -128,6 +134,8 @@ async def get_task(
         raise HTTPException(status_code=403, detail=str(e))
     except TaskNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except TaskNotInTeamError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 
 @router.patch(
@@ -162,6 +170,8 @@ async def update_task(
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except TaskNotInTeamError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 
 @router.patch(
@@ -195,6 +205,10 @@ async def assign_executor(
         raise HTTPException(status_code=404, detail=str(e))
     except UserNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except UserNotInTeamErorr as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except TaskNotInTeamError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 
 @router.patch(
@@ -236,6 +250,8 @@ async def change_status(
         raise HTTPException(status_code=404, detail=str(e))
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except TaskNotInTeamError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 
 @router.delete(
@@ -262,3 +278,5 @@ async def delete_task(
         raise HTTPException(status_code=403, detail=str(e))
     except TaskNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except TaskNotInTeamError as e:
+        raise HTTPException(status_code=403, detail=str(e))

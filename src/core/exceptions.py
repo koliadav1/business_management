@@ -30,5 +30,9 @@ class UserNotInTeamErorr(Exception):
     pass
 
 
+class TaskNotInTeamError(Exception):
+    pass
+
+
 class InvalidRoleError(Exception):
     pass

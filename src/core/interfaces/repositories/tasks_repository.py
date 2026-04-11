@@ -7,7 +7,9 @@ from .base_repository import IRepository
 
 class ITasksRepository(IRepository[Task]):
     @abstractmethod
-    async def get_by_executor(self, executor_id: int) -> List[Task]:
+    async def get_by_executor(
+        self, executor_id: int, team_id: int
+    ) -> List[Task]:
         """Получить все задачи для конкретного исполнителя"""
         pass
 
@@ -22,12 +24,14 @@ class ITasksRepository(IRepository[Task]):
         pass
 
     @abstractmethod
-    async def get_overdue(self, user_id: int) -> List[Task]:
+    async def get_overdue_for_user(
+        self, user_id: int, team_id: int
+    ) -> List[Task]:
         """Получить просроченные задачи конкретного пользователя"""
         pass
 
     @abstractmethod
-    async def get_all_overdue(self) -> List[Task]:
+    async def get_overdue_for_team(self, team_id: int) -> List[Task]:
         """Получить все просроченные задачи"""
         pass
 
@@ -36,4 +40,9 @@ class ITasksRepository(IRepository[Task]):
         self, task_id: int, new_status: TaskStatus
     ) -> Task | None:
         """Изменить статус задачи"""
+        pass
+
+    @abstractmethod
+    async def get_by_team(self, team_id) -> List[Task]:
+        """Получить все задачи команды"""
         pass

@@ -7,6 +7,7 @@ from src.core.database import Base
 
 if TYPE_CHECKING:
     from src.models.users import User
+    from src.models.tasks import Task
 
 
 class Team(Base):
@@ -26,4 +27,9 @@ class Team(Base):
 
     members: Mapped[List["User"]] = relationship(
         back_populates="team", foreign_keys="User.team_id"
+    )
+    team_tasks: Mapped[List["Task"]] = relationship(
+        back_populates="team",
+        foreign_keys="Task.team_id",
+        cascade="all, delete-orphan",
     )
