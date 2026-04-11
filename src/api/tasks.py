@@ -91,6 +91,8 @@ async def get_tasks(
         raise HTTPException(status_code=403, detail=str(e))
     except UserNotInTeamErorr as e:
         raise HTTPException(status_code=403, detail=str(e))
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get(

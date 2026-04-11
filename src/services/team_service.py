@@ -39,9 +39,8 @@ class TeamService:
             team = Team(name=name, description=description)
             created_team = await uow.teams_repo.add(team)
 
-            await uow.teams_repo.add_member(
-                created_team, current_user, UserRole.ADMIN
-            )
+            user = await uow.users_repo.get(current_user.id)
+            await uow.teams_repo.add_member(created_team, user, UserRole.ADMIN)
         return created_team
 
     async def get_team(self, uow: IUnitOfWork, team_id: int) -> Team:
@@ -124,35 +123,35 @@ class TeamService:
         return user
 
     async def remove_member(
-        self, uow: IUnitOfWork, team_id: int, user_id: int, current_user: User
+        self, uow: IUnitOfWork, user_id: int, current_user: User
     ) -> None:
         """
         Удаление пользователя из команды.
         Только для admin и manager команды
         """
         async with uow:
-            if not await self._can_manage_team(uow, team_id, current_user):
+            if current_user.team_id is None:
+                raise ForbiddenError("You're not in team")
+            if not await self._can_manage_team(
+                uow, current_user.team_id, current_user
+            ):
                 raise ForbiddenError(
                     "Only team admins and managers can remove members"
                 )
-
-            team = await uow.teams_repo.get(team_id)
-            if not team:
-                raise TeamNotFoundError(f"Team with id {team_id} not found")
 
             user = await uow.users_repo.get(user_id)
             if not user:
                 raise UserNotFoundError(f"User with id {user_id} not found")
 
-            if user.team_id != team_id:
+            if user.team_id != current_user.team_id:
                 raise UserNotInTeamErorr(
-                    f"User {user_id} not in team {team_id}"
+                    f"User {user_id} not in team {current_user.team_id}"
                 )
 
             if user.role == UserRole.ADMIN:
                 raise ForbiddenError("Can't remove admin from team")
 
-            await uow.teams_repo.remove_member(team, user)
+            await uow.teams_repo.remove_member(user)
 
     async def update_member_role(
         self,

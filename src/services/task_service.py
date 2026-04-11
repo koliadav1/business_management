@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from src.core.exceptions import (
@@ -31,7 +31,9 @@ class TaskService:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can create tasks")
 
-            team_id = self._check_user_team(uow, current_user, executor_id)
+            team_id = await self._check_user_team(
+                uow, current_user, executor_id
+            )
 
             task = Task(
                 description=description,
@@ -91,7 +93,7 @@ class TaskService:
                 task.description = description
 
             if deadline:
-                if deadline < datetime.now():
+                if deadline < datetime.now(timezone.utc):
                     raise ValueError("Deadline can't be in the past")
                 task.deadline = deadline
 
@@ -273,7 +275,7 @@ class TaskService:
         if admin_user.team_id is None:
             raise ForbiddenError("Admin is not in a team")
 
-        task = await uow.users_repo.get(task_id)
+        task = await uow.tasks_repo.get(task_id)
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 

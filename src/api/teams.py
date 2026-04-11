@@ -173,13 +173,12 @@ async def add_member(
 
 
 @router.delete(
-    "/{team_id}/members/{user_id}",
+    "/members/{user_id}",
     status_code=204,
     summary="Убрать участника из команды",
     description="Только для администратора и менеджера команды",
 )
 async def remove_member(
-    team_id: int = Path(gt=0, description="ID команды"),
     user_id: int = Path(gt=0, description="ID пользователя"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
@@ -192,7 +191,6 @@ async def remove_member(
     try:
         await service.remove_member(
             uow=uow,
-            team_id=team_id,
             user_id=user_id,
             current_user=current_user,
         )
