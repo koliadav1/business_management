@@ -2,7 +2,7 @@ from typing import List
 
 from src.core.exceptions import (
     ForbiddenError,
-    InvalidrRoleError,
+    InvalidRoleError,
     TeamAlreadyExistsError,
     TeamNotFoundError,
     UserAlreadyInTeamError,
@@ -56,27 +56,6 @@ class TeamService:
                 )
         return team
 
-    async def get_team_with_members(
-        self, uow: IUnitOfWork, team_id: int, current_user: User
-    ) -> Team:
-        """
-        Получение информации о команде и ее участниках.
-        Только для участников команды
-        """
-        async with uow:
-            team = await uow.teams_repo.get_team_with_members(team_id)
-            if not team:
-                raise TeamNotFoundError(
-                    f"Team with id {team_id} does not exist"
-                )
-
-            if not await self._can_view_team_members(
-                uow, team_id, current_user
-            ):
-                raise ForbiddenError("You can't view team members")
-
-        return team
-
     async def get_my_team(
         self, uow: IUnitOfWork, current_user: User
     ) -> Team | None:
@@ -100,9 +79,7 @@ class TeamService:
             if not team:
                 raise TeamNotFoundError(f"Team with id {team_id} not found")
 
-            if not await self._can_view_team_members(
-                uow, team_id, current_user
-            ):
+            if current_user.team_id != team_id:
                 raise ForbiddenError("You can't view team members")
 
             members = await uow.teams_repo.get_team_members(team_id, role)
@@ -196,7 +173,7 @@ class TeamService:
                 )
 
             if new_role not in [UserRole.MANAGER, UserRole.EMPLOYEE]:
-                raise InvalidrRoleError(
+                raise InvalidRoleError(
                     f"Invalid role: {new_role}. Must be MANAGER or EMPLOYEE"
                 )
 
@@ -238,14 +215,6 @@ class TeamService:
         """Получить список всех команд"""
         async with uow:
             return await uow.teams_repo.get_all()
-
-    async def _can_view_team_members(
-        self, uow: IUnitOfWork, team_id: int, current_user: User
-    ):
-        if await uow.teams_repo.is_member(team_id, current_user.id):
-            return True
-
-        return False
 
     async def _can_manage_team(
         self, uow: IUnitOfWork, team_id: int, current_user: User

@@ -13,11 +13,6 @@ class ITeamsRepository(IRepository[Team]):
         pass
 
     @abstractmethod
-    async def get_team_with_members(self, team_id: int) -> Team | None:
-        """Получить команду и ее членов"""
-        pass
-
-    @abstractmethod
     async def get_team_members(
         self, team_id: int, user_role: UserRole | None = None
     ) -> List[User]:

@@ -20,16 +20,6 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         )
         return result.scalar_one_or_none()
 
-    async def get_team_with_members(self, team_id: int) -> Team | None:
-        """Получить команду и ее членов"""
-        query = (
-            select(Team)
-            .where(Team.id == team_id)
-            .options(selectinload(Team.members))
-        )
-        result = await self._session.execute(query)
-        return result.scalar_one_or_none()
-
     async def get_team_members(
         self, team_id: int, user_role: UserRole | None = None
     ) -> List[User]:
