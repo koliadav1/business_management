@@ -12,10 +12,14 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
     def __init__(self, session):
         super().__init__(session, Task)
 
-    async def get_by_executor(self, executor_id: int) -> List[Task]:
+    async def get_by_executor(
+        self, executor_id: int, team_id: int
+    ) -> List[Task]:
         """Получить все задачи для конкретного исполнителя"""
         result = await self._session.execute(
-            select(Task).where(Task.executor_id == executor_id)
+            select(Task).where(
+                and_(Task.executor_id == executor_id, Task.team_id == team_id)
+            )
         )
         return result.scalars().all()
 
@@ -33,24 +37,28 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         )
         return result.scalars().all()
 
-    async def get_overdue(self, user_id: int) -> List[Task]:
+    async def get_overdue_for_user(
+        self, user_id: int, team_id: int
+    ) -> List[Task]:
         """Получить просроченные задачи конкретного пользователя"""
         query = select(Task).where(
             and_(
                 Task.executor_id == user_id,
                 Task.deadline < datetime.now(),
                 Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
+                Task.team_id == team_id,
             )
         )
         result = await self._session.execute(query)
         return result.scalars().all()
 
-    async def get_all_overdue(self) -> List[Task]:
+    async def get_overdue_for_team(self, team_id: int) -> List[Task]:
         """Получить все просроченные задачи"""
         query = select(Task).where(
             and_(
                 Task.deadline < datetime.now(),
                 Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
+                Task.team_id == team_id,
             )
         )
         result = await self._session.execute(query)
@@ -66,3 +74,9 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
             await self._session.flush()
             await self._session.refresh(task)
         return task
+
+    async def get_by_team(self, team_id):
+        result = await self._session.execute(
+            select(Task).where(Task.team_id == team_id)
+        )
+        return result.scalars().all()

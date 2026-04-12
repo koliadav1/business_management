@@ -1,17 +1,7 @@
-from datetime import datetime, timezone
-from typing import Annotated
-from pydantic import AfterValidator, ConfigDict, BaseModel, Field
+from pydantic import ConfigDict, BaseModel, Field
 
 from src.models.tasks import TaskStatus
-
-
-def validate_utc(v: datetime) -> datetime:
-    if v.tzinfo is None:
-        return v.replace(tzinfo=timezone.utc)
-    return v.astimezone(timezone.utc)
-
-
-UtcDateTime = Annotated[datetime, AfterValidator(validate_utc)]
+from .dependencies import UtcDateTime
 
 
 class TaskCreate(BaseModel):
