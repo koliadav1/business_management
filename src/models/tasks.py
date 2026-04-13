@@ -55,3 +55,6 @@ class Task(Base):
     team: Mapped["Team"] = relationship(
         back_populates="team_tasks", foreign_keys=[team_id]
     )
+
+    def __str__(self):
+        return self.description

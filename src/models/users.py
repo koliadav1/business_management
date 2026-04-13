@@ -52,3 +52,6 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     team: Mapped["Team"] = relationship(
         back_populates="members", foreign_keys=[team_id]
     )
+
+    def __str__(self):
+        return self.email

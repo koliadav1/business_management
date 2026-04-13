@@ -13,5 +13,3 @@ def setup_admin(app: FastAPI):
     admin.add_view(UserAdmin)
     admin.add_view(TaskAdmin)
     admin.add_view(TeamAdmin)
-
-    # return admin
