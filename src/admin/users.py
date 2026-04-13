@@ -1,8 +1,14 @@
 from fastapi_users import InvalidPasswordException
 from sqladmin import ModelView
+from sqladmin.filters import (
+    BooleanFilter,
+    ForeignKeyFilter,
+    StaticValuesFilter,
+)
 from fastapi_users.password import PasswordHelper
 from wtforms import PasswordField, ValidationError
 
+from src.models.teams import Team
 from src.models.users import User
 from src.utils.password_validation import password_validate
 
@@ -16,6 +22,7 @@ class UserAdmin(ModelView, model=User):
         User.role,
         User.team,
         User.created_at,
+        User.is_active,
         User.is_superuser,
     ]
     column_labels = {User.hashed_password: "Password"}
@@ -27,6 +34,22 @@ class UserAdmin(ModelView, model=User):
         User.id,
     ]
     form_overrides = {"hashed_password": PasswordField}
+    column_searchable_list = [User.email]
+    column_filters = [
+        StaticValuesFilter(
+            User.role,
+            [
+                ("USER", "User"),
+                ("ADMIN", "Admin"),
+                ("MANAGER", "Manager"),
+                ("EMPLOYEE", "Employee"),
+            ],
+            title="Role",
+        ),
+        BooleanFilter(User.is_active),
+        BooleanFilter(User.is_superuser),
+        ForeignKeyFilter(User.team_id, Team.name, title="Team"),
+    ]
 
     async def on_model_change(
         self, data: dict, model: User, is_created: bool, request
@@ -42,16 +65,3 @@ class UserAdmin(ModelView, model=User):
                     f"Password verification failed: {e.reason}"
                 )
             data.update(hashed_password=password_helper.hash(raw_password))
-
-        elif is_created:
-            generated_password = password_helper.generate()
-            try:
-                password_validate(generated_password, email)
-            except InvalidPasswordException as e:
-                raise ValidationError(
-                    f"Password verification failed: {e.reason}"
-                )
-
-            data.update(
-                hashed_password=password_helper.hash(generated_password)
-            )
