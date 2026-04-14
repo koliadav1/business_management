@@ -5,7 +5,6 @@ from src.models.teams import Team
 
 class TeamAdmin(ModelView, model=Team):
     column_list = [Team.id, Team.name, Team.description, Team.created_at]
-    form_include_pk = True
     form_excluded_columns = [
         Team.created_at,
         Team.updated_at,

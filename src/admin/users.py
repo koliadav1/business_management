@@ -26,7 +26,6 @@ class UserAdmin(ModelView, model=User):
         User.is_superuser,
     ]
     column_labels = {User.hashed_password: "Password"}
-    form_include_pk = True
     form_excluded_columns = [
         User.team_id,
         User.created_at,
@@ -34,7 +33,7 @@ class UserAdmin(ModelView, model=User):
         User.id,
     ]
     form_overrides = {"hashed_password": PasswordField}
-    column_searchable_list = [User.email]
+    column_searchable_list = [User.email, "team.name"]
     column_filters = [
         StaticValuesFilter(
             User.role,
