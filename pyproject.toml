@@ -13,6 +13,8 @@ dependencies = [
     "fastapi-users==15.0.5",
     "passlib==1.7.4",
     "python-jose==3.5.0",
+    "sqladmin==0.24.0",
+    "itsdangerous==2.2.0",
 ]
 
 [project.optional-dependencies]

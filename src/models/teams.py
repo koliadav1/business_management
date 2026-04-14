@@ -33,3 +33,6 @@ class Team(Base):
         foreign_keys="Task.team_id",
         cascade="all, delete-orphan",
     )
+
+    def __str__(self):
+        return self.name
