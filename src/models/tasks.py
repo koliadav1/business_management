@@ -10,6 +10,7 @@ from src.core.database import Base
 if TYPE_CHECKING:
     from src.models.users import User
     from src.models.teams import Team
+    from src.models.evaluations import Evaluation
 
 
 class TaskStatus(Enum):
@@ -54,6 +55,9 @@ class Task(Base):
     )
     team: Mapped["Team"] = relationship(
         back_populates="team_tasks", foreign_keys=[team_id]
+    )
+    evaluation: Mapped["Evaluation"] = relationship(
+        back_populates="task", foreign_keys="Evaluation.task_id"
     )
 
     def __str__(self):
