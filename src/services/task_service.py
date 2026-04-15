@@ -142,10 +142,18 @@ class TaskService:
             if not self._is_valid_transition(task.status, new_status):
                 raise InvalidTransitionError(
                     f"Can't change status from "
-                    f"{task.status.value} to {new_status.valuse}"
+                    f"{task.status.value} to {new_status.value}"
                 )
 
+            old_status = task.status
             task.status = new_status
+
+            if new_status == TaskStatus.DONE and task.completed_at is None:
+                task.completed_at = datetime.now(timezone.utc)
+
+            if old_status == TaskStatus.DONE and new_status != TaskStatus.DONE:
+                task.completed_at = None
+
             updated_task = await uow.tasks_repo.update(task)
 
         return updated_task
@@ -197,7 +205,7 @@ class TaskService:
                         current_user.team_id
                     )
             else:
-                tasks = uow.tasks_repo.get_by_executor(
+                tasks = await uow.tasks_repo.get_by_executor(
                     current_user.id, current_user.team_id
                 )
             if status:
@@ -220,7 +228,7 @@ class TaskService:
                 raise ForbiddenError("You're not in a team")
             if current_user.role != UserRole.ADMIN:
                 tasks = await uow.tasks_repo.get_overdue_for_user(
-                    current_user.user_id, current_user.team_id
+                    current_user.id, current_user.team_id
                 )
             else:
                 tasks = await uow.tasks_repo.get_overdue_for_team(
