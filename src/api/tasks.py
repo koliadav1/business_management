@@ -10,7 +10,7 @@ from src.core.exceptions import (
     TaskNotFoundError,
     TaskNotInTeamError,
     UserNotFoundError,
-    UserNotInTeamErorr,
+    UserNotInTeamError,
 )
 from src.services.task_service import TaskService
 from src.models.users import User
@@ -56,7 +56,7 @@ async def create_task(
         raise HTTPException(status_code=403, detail=str(e))
     except UserNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except UserNotInTeamErorr as e:
+    except UserNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
 
@@ -89,7 +89,7 @@ async def get_tasks(
         return tasks
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamErorr as e:
+    except UserNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except UserNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -207,7 +207,7 @@ async def assign_executor(
         raise HTTPException(status_code=404, detail=str(e))
     except UserNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except UserNotInTeamErorr as e:
+    except UserNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except TaskNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))

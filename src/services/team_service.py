@@ -7,7 +7,7 @@ from src.core.exceptions import (
     TeamNotFoundError,
     UserAlreadyInTeamError,
     UserNotFoundError,
-    UserNotInTeamErorr,
+    UserNotInTeamError,
 )
 from src.models.teams import Team
 from src.models.users import User, UserRole
@@ -144,7 +144,7 @@ class TeamService:
                 raise UserNotFoundError(f"User with id {user_id} not found")
 
             if user.team_id != current_user.team_id:
-                raise UserNotInTeamErorr(
+                raise UserNotInTeamError(
                     f"User {user_id} not in team {current_user.team_id}"
                 )
 
@@ -185,7 +185,7 @@ class TeamService:
                 raise UserNotFoundError(f"User with id {user_id} not found")
 
             if user.team_id != team_id:
-                raise UserNotInTeamErorr(
+                raise UserNotInTeamError(
                     f"User {user_id} not in team {team_id}"
                 )
 

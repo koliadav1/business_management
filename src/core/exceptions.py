@@ -26,7 +26,7 @@ class UserAlreadyInTeamError(Exception):
     pass
 
 
-class UserNotInTeamErorr(Exception):
+class UserNotInTeamError(Exception):
     pass
 
 

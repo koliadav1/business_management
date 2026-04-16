@@ -9,7 +9,7 @@ from src.core.exceptions import (
     TeamNotFoundError,
     UserAlreadyInTeamError,
     UserNotFoundError,
-    UserNotInTeamErorr,
+    UserNotInTeamError,
 )
 from src.services.team_service import TeamService
 from src.core.interfaces.unit_of_work import IUnitOfWork
@@ -200,7 +200,7 @@ async def remove_member(
         raise HTTPException(status_code=404, detail=str(e))
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamErorr as e:
+    except UserNotInTeamError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -237,7 +237,7 @@ async def update_member_role(
         raise HTTPException(status_code=404, detail=str(e))
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamErorr as e:
+    except UserNotInTeamError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except InvalidRoleError as e:
         raise HTTPException(status_code=400, detail=str(e))

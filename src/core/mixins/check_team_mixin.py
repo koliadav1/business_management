@@ -3,7 +3,7 @@ from src.core.exceptions import (
     TaskNotFoundError,
     TaskNotInTeamError,
     UserNotFoundError,
-    UserNotInTeamErorr,
+    UserNotInTeamError,
 )
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.users import User
@@ -17,15 +17,15 @@ class CheckTeamMixin:
         self, uow: IUnitOfWork, user_id1: User, user_id2: int
     ) -> int:
         if user_id1.team_id is None:
-            raise ForbiddenError("Admin is not in a team")
+            raise ForbiddenError(f"User {user_id1} is not in a team")
 
         executor = await uow.users_repo.get(user_id2)
         if not executor:
             raise UserNotFoundError(f"User with id {user_id2} not found")
 
         if user_id1.team_id != executor.team_id:
-            raise UserNotInTeamErorr(
-                f"User {user_id2} is not in the same team as admin"
+            raise UserNotInTeamError(
+                f"User {user_id2} is not in the same team as {user_id1}"
             )
 
         return user_id1.team_id
