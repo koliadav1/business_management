@@ -3,11 +3,12 @@ from typing import List
 
 from sqlalchemy import and_, case, func, select
 
-from src.models.tasks import Task, TaskStatus
+from src.models.tasks import Task
 from src.repositories.base_repository import SQLRepository
 from src.core.interfaces.repositories.evaluations_repository import (
     IEvaluationsRepository,
 )
+from src.models.users import User
 from src.models.evaluations import Evaluation
 
 
@@ -22,38 +23,31 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         )
         return result.scalar_one_or_none()
 
-    async def get_user_evaluations(self, user_id: int) -> List[Evaluation]:
+    async def get_user_evaluations(
+        self, user_id: int, team_id: int | None = None
+    ) -> List[Evaluation]:
         """Получить все оценки пользователя"""
-        result = await self._session.execute(
+        query = (
             select(Evaluation)
             .join(Task, Evaluation.task_id == Task.id)
             .where(Task.executor_id == user_id)
             .order_by(Evaluation.created_at.desc())
         )
+        if team_id:
+            query = query.where(Task.team_id == team_id)
+
+        result = await self._session.execute(query)
         return result.scalars().all()
 
-    async def get_avg_rating(
-        self, user_id: int, start_date: datetime, end_date: datetime
-    ) -> float:
-        """Получить средний рейтинг выполненных задач за заданный период"""
-        result = await self._session.execute(
-            select(func.avg(Evaluation.rating))
-            .join(Task, Evaluation.task_id == Task.id)
-            .where(
-                and_(
-                    Task.executor_id == user_id,
-                    Task.status == TaskStatus.DONE,
-                    Task.completed_at.is_not(None),
-                    Task.completed_at.between(start_date, end_date),
-                )
-            )
-        )
-        avg = result.scalar_one_or_none()
-        return avg or 0.0
-
-    async def get_statistics(self, user_id: int) -> dict:
+    async def get_statistics(
+        self,
+        user_id: int,
+        team_id: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict | None:
         """Получить сводку по оценкам пользователя"""
-        result = self._session.execute(
+        query = (
             select(
                 func.count(Evaluation.id).label("total"),
                 func.avg(Evaluation.rating).label("avg"),
@@ -76,6 +70,15 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
             .join(Task, Evaluation.task_id == Task.id)
             .where(Task.executor_id == user_id)
         )
+
+        if team_id:
+            query = query.where(Task.team_id == team_id)
+        if start_date:
+            query = query.where(Task.completed_at >= start_date)
+        if end_date:
+            query = query.where(Task.completed_at <= end_date)
+
+        result = await self._session.execute(query)
         row = result.scalar()
 
         return {
@@ -89,3 +92,45 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
                 1: row.rating_1 or 0,
             },
         }
+
+    async def get_evaluations_with_tasks(
+        self,
+        user_id: int,
+        team_id: int,
+    ) -> List[tuple[Evaluation, Task]]:
+        """Получить данные об оценках и задачах пользователя"""
+        query = (
+            select(
+                Evaluation,
+                Task,
+            )
+            .join(Task, Evaluation.task_id == Task.id)
+            .where(and_(Task.executor_id == user_id, Task.team_id == team_id))
+        )
+
+        result = await self._session.execute(query)
+        return result.all()
+
+    async def get_by_team(self, team_id: int) -> List[dict]:
+        """Получить оценки и задачи для всей команды"""
+        result = await self._session.execute(
+            select(
+                Evaluation,
+                Task,
+                User.email,
+            )
+            .join(Task, Evaluation.task_id == Task.id)
+            .join(User, Task.executor_id == User.id)
+            .where(Task.team_id == team_id)
+            .order_by(Evaluation.created_at.desc())
+        )
+        rows = result.all()
+
+        return [
+            {
+                "evaluation": evaluation,
+                "task": task,
+                "executor": executor,
+            }
+            for evaluation, task, executor in rows
+        ]

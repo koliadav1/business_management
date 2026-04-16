@@ -1,20 +1,17 @@
 from datetime import datetime, timezone
 from typing import List
 
+from src.core.mixins.check_team_mixin import CheckTeamMixin
 from src.core.exceptions import (
     ForbiddenError,
     InvalidTransitionError,
-    TaskNotFoundError,
-    TaskNotInTeamError,
-    UserNotFoundError,
-    UserNotInTeamErorr,
 )
 from src.models.tasks import Task, TaskStatus
 from src.models.users import User, UserRole
 from src.core.interfaces.unit_of_work import IUnitOfWork
 
 
-class TaskService:
+class TaskService(CheckTeamMixin):
     async def create_task(
         self,
         description: str,
@@ -259,37 +256,3 @@ class TaskService:
             TaskStatus.CANCELLED: set(),
         }
         return new in transitions.get(current, set())
-
-    async def _check_user_team(
-        self, uow: IUnitOfWork, admin_user: User, executor_id: int
-    ) -> int:
-        if admin_user.team_id is None:
-            raise ForbiddenError("Admin is not in a team")
-
-        executor = await uow.users_repo.get(executor_id)
-        if not executor:
-            raise UserNotFoundError(f"User with id {executor_id} not found")
-
-        if admin_user.team_id != executor.team_id:
-            raise UserNotInTeamErorr(
-                f"User {executor_id} is not in the same team as admin"
-            )
-
-        return admin_user.team_id
-
-    async def _check_task_team(
-        self, uow: IUnitOfWork, admin_user: User, task_id: int
-    ) -> Task:
-        if admin_user.team_id is None:
-            raise ForbiddenError("Admin is not in a team")
-
-        task = await uow.tasks_repo.get(task_id)
-        if not task:
-            raise TaskNotFoundError(f"Task with id {task_id} not found")
-
-        if admin_user.team_id != task.team_id:
-            raise TaskNotInTeamError(
-                "You can only manage tasks from your team"
-            )
-
-        return task

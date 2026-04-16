@@ -36,3 +36,11 @@ class TaskNotInTeamError(Exception):
 
 class InvalidRoleError(Exception):
     pass
+
+
+class TaskNotCompletedError(Exception):
+    pass
+
+
+class EvaluationNotFoundError(Exception):
+    pass
