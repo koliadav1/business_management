@@ -1,20 +1,17 @@
 from datetime import datetime, timezone
 from typing import List
 
+from src.core.mixins.check_team_mixin import CheckTeamMixin
 from src.core.exceptions import (
     ForbiddenError,
     InvalidTransitionError,
-    TaskNotFoundError,
-    TaskNotInTeamError,
-    UserNotFoundError,
-    UserNotInTeamErorr,
 )
 from src.models.tasks import Task, TaskStatus
 from src.models.users import User, UserRole
 from src.core.interfaces.unit_of_work import IUnitOfWork
 
 
-class TaskService:
+class TaskService(CheckTeamMixin):
     async def create_task(
         self,
         description: str,
@@ -142,10 +139,18 @@ class TaskService:
             if not self._is_valid_transition(task.status, new_status):
                 raise InvalidTransitionError(
                     f"Can't change status from "
-                    f"{task.status.value} to {new_status.valuse}"
+                    f"{task.status.value} to {new_status.value}"
                 )
 
+            old_status = task.status
             task.status = new_status
+
+            if new_status == TaskStatus.DONE and task.completed_at is None:
+                task.completed_at = datetime.now(timezone.utc)
+
+            if old_status == TaskStatus.DONE and new_status != TaskStatus.DONE:
+                task.completed_at = None
+
             updated_task = await uow.tasks_repo.update(task)
 
         return updated_task
@@ -197,7 +202,7 @@ class TaskService:
                         current_user.team_id
                     )
             else:
-                tasks = uow.tasks_repo.get_by_executor(
+                tasks = await uow.tasks_repo.get_by_executor(
                     current_user.id, current_user.team_id
                 )
             if status:
@@ -220,7 +225,7 @@ class TaskService:
                 raise ForbiddenError("You're not in a team")
             if current_user.role != UserRole.ADMIN:
                 tasks = await uow.tasks_repo.get_overdue_for_user(
-                    current_user.user_id, current_user.team_id
+                    current_user.id, current_user.team_id
                 )
             else:
                 tasks = await uow.tasks_repo.get_overdue_for_team(
@@ -251,37 +256,3 @@ class TaskService:
             TaskStatus.CANCELLED: set(),
         }
         return new in transitions.get(current, set())
-
-    async def _check_user_team(
-        self, uow: IUnitOfWork, admin_user: User, executor_id: int
-    ) -> int:
-        if admin_user.team_id is None:
-            raise ForbiddenError("Admin is not in a team")
-
-        executor = await uow.users_repo.get(executor_id)
-        if not executor:
-            raise UserNotFoundError(f"User with id {executor_id} not found")
-
-        if admin_user.team_id != executor.team_id:
-            raise UserNotInTeamErorr(
-                f"User {executor_id} is not in the same team as admin"
-            )
-
-        return admin_user.team_id
-
-    async def _check_task_team(
-        self, uow: IUnitOfWork, admin_user: User, task_id: int
-    ) -> Task:
-        if admin_user.team_id is None:
-            raise ForbiddenError("Admin is not in a team")
-
-        task = await uow.tasks_repo.get(task_id)
-        if not task:
-            raise TaskNotFoundError(f"Task with id {task_id} not found")
-
-        if admin_user.team_id != task.team_id:
-            raise TaskNotInTeamError(
-                "You can only manage tasks from your team"
-            )
-
-        return task

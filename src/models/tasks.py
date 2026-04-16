@@ -10,6 +10,7 @@ from src.core.database import Base
 if TYPE_CHECKING:
     from src.models.users import User
     from src.models.teams import Team
+    from src.models.evaluations import Evaluation
 
 
 class TaskStatus(Enum):
@@ -37,6 +38,9 @@ class Task(Base):
     team_id: Mapped[int] = mapped_column(
         ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -54,6 +58,9 @@ class Task(Base):
     )
     team: Mapped["Team"] = relationship(
         back_populates="team_tasks", foreign_keys=[team_id]
+    )
+    evaluation: Mapped["Evaluation"] = relationship(
+        back_populates="task", foreign_keys="Evaluation.task_id"
     )
 
     def __str__(self):

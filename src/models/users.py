@@ -9,6 +9,7 @@ from typing import List, TYPE_CHECKING
 from src.core.database import Base
 
 if TYPE_CHECKING:
+    from src.models.evaluations import Evaluation
     from src.models.tasks import Task
     from src.models.teams import Team
 
@@ -51,6 +52,9 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     )
     team: Mapped["Team"] = relationship(
         back_populates="members", foreign_keys=[team_id]
+    )
+    evaluations: Mapped[List["Evaluation"]] = relationship(
+        back_populates="rater", foreign_keys="Evaluation.rater_id"
     )
 
     def __str__(self):

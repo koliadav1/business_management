@@ -6,6 +6,7 @@ from src.core.config import settings
 from .teams import TeamAdmin
 from .tasks import TaskAdmin
 from .users import UserAdmin
+from .evaluations import EvaluationAdmin
 from .auth import SQLAdminAuth
 
 
@@ -21,3 +22,4 @@ def setup_admin(app: FastAPI):
     admin.add_view(UserAdmin)
     admin.add_view(TaskAdmin)
     admin.add_view(TeamAdmin)
+    admin.add_view(EvaluationAdmin)
