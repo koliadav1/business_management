@@ -29,6 +29,8 @@ class TeamService:
         async with uow:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can create a team")
+            if current_user.team_id is not None:
+                raise UserAlreadyInTeamError("You're already in team")
 
             existing_team = await uow.teams_repo.get_by_name(name)
             if existing_team:

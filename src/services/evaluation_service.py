@@ -35,6 +35,9 @@ class EvaluationService(CheckTeamMixin):
 
             task = await self._check_task_team(uow, current_user, task_id)
 
+            if task.executor_id == current_user.id:
+                raise ForbiddenError("You can't rate your own tasks")
+
             if task.status != TaskStatus.DONE:
                 raise TaskNotCompletedError(
                     f"Task {task_id} is not completed. "
