@@ -6,6 +6,7 @@ from src.models.users import UserRole
 
 class UserRead(schemas.BaseUser[int]):
     id: int
+    team_id: int | None
     email: EmailStr
     role: UserRole
 

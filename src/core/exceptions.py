@@ -12,3 +12,35 @@ class ForbiddenError(Exception):
 
 class InvalidTransitionError(Exception):
     pass
+
+
+class TeamNotFoundError(Exception):
+    pass
+
+
+class TeamAlreadyExistsError(Exception):
+    pass
+
+
+class UserAlreadyInTeamError(Exception):
+    pass
+
+
+class UserNotInTeamError(Exception):
+    pass
+
+
+class TaskNotInTeamError(Exception):
+    pass
+
+
+class InvalidRoleError(Exception):
+    pass
+
+
+class TaskNotCompletedError(Exception):
+    pass
+
+
+class EvaluationNotFoundError(Exception):
+    pass

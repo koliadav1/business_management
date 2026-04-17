@@ -1,18 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
+from src.core.mixins.check_team_mixin import CheckTeamMixin
 from src.core.exceptions import (
     ForbiddenError,
     InvalidTransitionError,
-    TaskNotFoundError,
-    UserNotFoundError,
 )
 from src.models.tasks import Task, TaskStatus
 from src.models.users import User, UserRole
 from src.core.interfaces.unit_of_work import IUnitOfWork
 
 
-class TaskService:
+class TaskService(CheckTeamMixin):
     async def create_task(
         self,
         description: str,
@@ -29,16 +28,16 @@ class TaskService:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can create tasks")
 
-            if not await uow.users_repo.exists(executor_id):
-                raise UserNotFoundError(
-                    f"Executor with {executor_id} id not found"
-                )
+            team_id = await self._check_user_team(
+                uow, current_user, executor_id
+            )
 
             task = Task(
                 description=description,
                 deadline=deadline,
                 executor_id=executor_id,
                 author_id=current_user.id,
+                team_id=team_id,
                 status=TaskStatus.NEW,
             )
 
@@ -60,14 +59,9 @@ class TaskService:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can assign executor")
 
-            task = await uow.tasks_repo.get(task_id)
-            if not task:
-                raise TaskNotFoundError(f"Task with {task_id} id not found")
+            task = await self._check_task_team(uow, current_user, task_id)
 
-            if not await uow.users_repo.exists(executor_id):
-                raise UserNotFoundError(
-                    f"Executor with {executor_id} id not found"
-                )
+            await self._check_user_team(uow, current_user, executor_id)
 
             task.executor_id = executor_id
             updated_task = await uow.tasks_repo.update(task)
@@ -90,15 +84,13 @@ class TaskService:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can update tasks")
 
-            task = await uow.tasks_repo.get(task_id)
-            if not task:
-                raise TaskNotFoundError(f"Task with {task_id} id not found")
+            task = await self._check_task_team(uow, current_user, task_id)
 
             if description:
                 task.description = description
 
             if deadline:
-                if deadline < datetime.now():
+                if deadline < datetime.now(timezone.utc):
                     raise ValueError("Deadline can't be in the past")
                 task.deadline = deadline
 
@@ -120,10 +112,7 @@ class TaskService:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can delete tasks")
 
-            task = await uow.tasks_repo.get(task_id)
-            if not task:
-                raise TaskNotFoundError(f"Task with {task_id} id not found")
-
+            await self._check_task_team(uow, current_user, task_id)
             await uow.tasks_repo.delete(task_id)
 
     async def change_status(
@@ -139,9 +128,7 @@ class TaskService:
         Executor - только статусы DONE и IN_PROGRESS
         """
         async with uow:
-            task = await uow.tasks_repo.get(task_id)
-            if not task:
-                raise TaskNotFoundError(f"Task with {task_id} id not found")
+            task = await self._check_task_team(uow, current_user, task_id)
 
             if not self._can_change_status(task, new_status, current_user):
                 raise ForbiddenError(
@@ -152,10 +139,18 @@ class TaskService:
             if not self._is_valid_transition(task.status, new_status):
                 raise InvalidTransitionError(
                     f"Can't change status from "
-                    f"{task.status.value} to {new_status.valuse}"
+                    f"{task.status.value} to {new_status.value}"
                 )
 
+            old_status = task.status
             task.status = new_status
+
+            if new_status == TaskStatus.DONE and task.completed_at is None:
+                task.completed_at = datetime.now(timezone.utc)
+
+            if old_status == TaskStatus.DONE and new_status != TaskStatus.DONE:
+                task.completed_at = None
+
             updated_task = await uow.tasks_repo.update(task)
 
         return updated_task
@@ -171,9 +166,7 @@ class TaskService:
         Только для admin и исполнителя задачи
         """
         async with uow:
-            task = await uow.tasks_repo.get(task_id)
-            if not task:
-                raise TaskNotFoundError(f"Task with {task_id} id not found")
+            task = await self._check_task_team(uow, current_user, task_id)
 
             if (
                 current_user.role == UserRole.ADMIN
@@ -196,12 +189,22 @@ class TaskService:
         Обычный пользователь видит только свои задачи
         """
         async with uow:
-            if current_user.role == UserRole.ADMIN and user_id:
-                tasks = await uow.tasks_repo.get_by_executor(user_id)
-            elif not user_id:
-                tasks = await uow.tasks_repo.get_by_executor(current_user.id)
-            elif user_id and current_user.role != UserRole.ADMIN:
-                raise ForbiddenError("You can only see your tasks")
+            if current_user.team_id is None:
+                raise ForbiddenError("You're not in a team")
+            if current_user.role == UserRole.ADMIN:
+                if user_id:
+                    await self._check_user_team(uow, current_user, user_id)
+                    tasks = await uow.tasks_repo.get_by_executor(
+                        user_id, current_user.team_id
+                    )
+                else:
+                    tasks = await uow.tasks_repo.get_by_team(
+                        current_user.team_id
+                    )
+            else:
+                tasks = await uow.tasks_repo.get_by_executor(
+                    current_user.id, current_user.team_id
+                )
             if status:
                 tasks = [task for task in tasks if task.status == status]
 
@@ -218,10 +221,16 @@ class TaskService:
         Обычный пользователь видит только свои задачи
         """
         async with uow:
+            if current_user.team_id is None:
+                raise ForbiddenError("You're not in a team")
             if current_user.role != UserRole.ADMIN:
-                tasks = await uow.tasks_repo.get_overdue(current_user.user_id)
+                tasks = await uow.tasks_repo.get_overdue_for_user(
+                    current_user.id, current_user.team_id
+                )
             else:
-                tasks = await uow.tasks_repo.get_all_overdue()
+                tasks = await uow.tasks_repo.get_overdue_for_team(
+                    current_user.team_id
+                )
         return tasks
 
     def _can_change_status(

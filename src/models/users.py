@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import ForeignKey, String, DateTime, func
 from sqlalchemy import Enum as SQLEnum
 from fastapi_users.db import SQLAlchemyBaseUserTable
 from datetime import datetime
@@ -9,7 +9,9 @@ from typing import List, TYPE_CHECKING
 from src.core.database import Base
 
 if TYPE_CHECKING:
+    from src.models.evaluations import Evaluation
     from src.models.tasks import Task
+    from src.models.teams import Team
 
 
 class UserRole(Enum):
@@ -30,6 +32,9 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     role: Mapped[UserRole] = mapped_column(
         SQLEnum(UserRole), default=UserRole.USER, nullable=False
     )
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -45,3 +50,12 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     created_tasks: Mapped[List["Task"]] = relationship(
         back_populates="author", foreign_keys="Task.author_id"
     )
+    team: Mapped["Team"] = relationship(
+        back_populates="members", foreign_keys=[team_id]
+    )
+    evaluations: Mapped[List["Evaluation"]] = relationship(
+        back_populates="rater", foreign_keys="Evaluation.rater_id"
+    )
+
+    def __str__(self):
+        return self.email
