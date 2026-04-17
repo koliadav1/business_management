@@ -124,13 +124,4 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
             .where(Task.team_id == team_id)
             .order_by(Evaluation.created_at.desc())
         )
-        rows = result.all()
-
-        return [
-            {
-                "evaluation": evaluation,
-                "task": task,
-                "executor": executor,
-            }
-            for evaluation, task, executor in rows
-        ]
+        return result.scalars().all()
