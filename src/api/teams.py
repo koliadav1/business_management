@@ -54,6 +54,8 @@ async def create_team(
         raise HTTPException(status_code=403, detail=str(e))
     except TeamAlreadyExistsError as e:
         raise HTTPException(status_code=409, detail=str(e))
+    except UserAlreadyInTeamError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.get(

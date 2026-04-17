@@ -79,11 +79,11 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
             query = query.where(Task.completed_at <= end_date)
 
         result = await self._session.execute(query)
-        row = result.scalar()
+        row = result.one_or_none()
 
         return {
-            "total": row.total or 0,
-            "average": float(row.avg) or 0.0,
+            "total": row.total if row.total else 0,
+            "average": float(row.avg) if row.avg else 0.0,
             "distribution": {
                 5: row.rating_5 or 0,
                 4: row.rating_4 or 0,
