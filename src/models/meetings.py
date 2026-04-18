@@ -21,6 +21,23 @@ if TYPE_CHECKING:
     from src.models.teams import Team
 
 
+class MeetingMember(Base):
+    __tablename__ = "meeting_members"
+    __table_args__ = (
+        UniqueConstraint("member_id", "meeting_id", name="uq_meeting_member"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    member_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    meeting_id: Mapped[int] = mapped_column(
+        ForeignKey("meetings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+
 class Meeting(Base):
     __tablename__ = "meetings"
 
@@ -52,10 +69,11 @@ class Meeting(Base):
     team: Mapped["Team"] = relationship(
         back_populates="meetings", foreign_keys=[team_id]
     )
-    members: Mapped[List["MeetingMember"]] = relationship(
-        back_populates="meeting",
-        cascade="all, delete-orphan",
-        foreign_keys="MeetingMember.meeting_id",
+    members: Mapped[List["User"]] = relationship(
+        back_populates="meetings",
+        secondary="meeting_members",
+        primaryjoin="Meeting.id == MeetingMember.meeting_id",
+        secondaryjoin="User.id == MeetingMember.member_id",
     )
 
     @hybrid_property
@@ -76,27 +94,3 @@ class Meeting(Base):
 
     def __str__(self):
         return f"Meeting at {self.start_time}"
-
-
-class MeetingMember(Base):
-    __tablename__ = "meeting_members"
-    __table_args__ = (
-        UniqueConstraint("member_id", "meeting_id", name="uq_meeting_member"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    member_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    meeting_id: Mapped[int] = mapped_column(
-        ForeignKey("meetings.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-
-    user: Mapped["User"] = relationship(
-        back_populates="meetings", foreign_keys=[member_id]
-    )
-    meeting: Mapped["Meeting"] = relationship(
-        back_populates="members", foreign_keys=[meeting_id]
-    )
