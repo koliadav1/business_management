@@ -1,15 +1,13 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.ext.hybrid import hybrid_property
+
 from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
     DateTime,
-    and_,
     func,
     UniqueConstraint,
     Boolean,
-    text,
 )
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, List
@@ -76,21 +74,13 @@ class Meeting(Base):
         secondaryjoin="User.id == MeetingMember.member_id",
     )
 
-    @hybrid_property
+    @property
     def end_time(self):
         return self.start_time + timedelta(minutes=self.duration_m)
 
-    @end_time.expression
-    def end_time(cls):
-        return cls.start_time + (cls.duration_m * text("interval '1 minute'"))
-
-    @hybrid_property
+    @property
     def is_finished(self):
         return self.is_active and datetime.now(timezone.utc) > self.end_time
-
-    @is_finished.expression
-    def is_finished(cls):
-        return and_(cls.is_active, func.now() > cls.end_time)
 
     def __str__(self):
         return f"Meeting at {self.start_time}"

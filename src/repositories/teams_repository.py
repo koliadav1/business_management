@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -77,9 +77,7 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         Является ли пользователь членом команды
         с дополнительной проверкой по роли
         """
-        query = select(User).where(
-            and_(User.id == user_id, User.team_id == team_id)
-        )
+        query = select(User).where(User.id == user_id, User.team_id == team_id)
         if user_role:
             query = query.where(User.role == user_role)
         result = await self._session.execute(query)

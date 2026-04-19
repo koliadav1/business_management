@@ -1,9 +1,12 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from .evaluations_repository import EvaluationsRepository
-from .teams_repository import TeamsRepository
-from .tasks_repository import TasksRepository
-from .users_repository import UsersRepository
+from . import (
+    MeetingsRepository,
+    EvaluationsRepository,
+    TeamsRepository,
+    TasksRepository,
+    UsersRepository,
+)
 from src.core.interfaces.unit_of_work import IUnitOfWork
 
 
@@ -18,6 +21,7 @@ class SQLAlchUnitOfWork(IUnitOfWork):
         self.users_repo = UsersRepository(self._session)
         self.teams_repo = TeamsRepository(self._session)
         self.evaluations_repo = EvaluationsRepository(self._session)
+        self.meetings_repo = MeetingsRepository(self._session)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):

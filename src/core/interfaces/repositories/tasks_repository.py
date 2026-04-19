@@ -43,6 +43,6 @@ class ITasksRepository(IRepository[Task]):
         pass
 
     @abstractmethod
-    async def get_by_team(self, team_id) -> List[Task]:
+    async def get_by_team(self, team_id: int) -> List[Task]:
         """Получить все задачи команды"""
         pass
