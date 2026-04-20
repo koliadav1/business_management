@@ -34,7 +34,7 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
         self,
         user_id: int,
         include_cancelled: bool = False,
-        include_inprogress: bool = True,
+        include_finished: bool = True,
     ) -> List[Meeting]:
         """Получить все встречи пользователя"""
         query = select(Meeting).join(Meeting.members).where(User.id == user_id)
@@ -42,7 +42,7 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
         if not include_cancelled:
             query = query.where(Meeting.is_active)
 
-        if not include_inprogress:
+        if not include_finished:
             query = query.where(Meeting.start_time > func.now())
 
         result = await self._session.execute(query)
@@ -52,6 +52,7 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
         self,
         team_id: int,
         include_cancelled: bool = False,
+        include_finished: bool = True,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> List[Meeting]:
@@ -60,6 +61,9 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
 
         if not include_cancelled:
             query = query.where(Meeting.is_active)
+
+        if not include_finished:
+            query = query.where(Meeting.start_time > func.now())
 
         if start_date:
             query = query.where(Meeting.start_time >= start_date)
@@ -165,7 +169,7 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
 
     async def add_members_to_meeting(
         self, meeting_id: int, user_ids: List[int]
-    ) -> List[User]:
+    ) -> Meeting:
         """Добавить участников к встрече"""
         meeting = await self.get_meeting_with_members(meeting_id)
         if not meeting:
@@ -183,4 +187,13 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
             meeting.members.append(user)
 
         await self._session.flush()
-        return new_members
+        return meeting
+
+    async def is_member(self, meeting_id: int, user_id: int) -> bool:
+        """Является ли пользователь участником встречи"""
+        result = await self._session.execute(
+            select(Meeting)
+            .join(Meeting.members)
+            .where(Meeting.id == meeting_id, User.id == user_id)
+        )
+        return result.scalar_one_or_none() is not None

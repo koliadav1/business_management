@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sqlalchemy import (
+    CheckConstraint,
     ForeignKey,
     Integer,
     String,
@@ -41,8 +42,15 @@ class Meeting(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     description: Mapped[str] = mapped_column(String(1024))
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    duration_m: Mapped[int] = mapped_column(Integer)
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        CheckConstraint(
+            "start_time > CURRENT_TIMESTAMP", name="check_start_time_not_past"
+        ),
+    )
+    duration_m: Mapped[int] = mapped_column(
+        Integer, CheckConstraint("duration_m > 0", name="duration_positive")
+    )
     initiator_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )

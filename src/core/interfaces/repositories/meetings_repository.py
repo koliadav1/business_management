@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List
 
 from src.models.users import User
-from src.models.meetings import Meeting, MeetingMember
+from src.models.meetings import Meeting
 from .base_repository import IRepository
 
 
@@ -30,6 +30,7 @@ class IMeetingsRepository(IRepository[Meeting]):
         self,
         team_id: int,
         include_cancelled: bool = False,
+        include_finished: bool = True,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> List[Meeting]:
@@ -77,6 +78,11 @@ class IMeetingsRepository(IRepository[Meeting]):
     @abstractmethod
     async def add_members_to_meeting(
         self, meeting_id: int, user_ids: List[int]
-    ) -> List[MeetingMember]:
+    ) -> Meeting:
         """Добавить участников к встрече"""
+        pass
+
+    @abstractmethod
+    async def is_member(self, meeting_id: int, user_id: int) -> bool:
+        """Является ли пользователь участником встречи"""
         pass

@@ -1,3 +1,5 @@
+# TODO валидацию данных на уровне pydantic и exceptionhandlers
+
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 

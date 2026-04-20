@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List
 
-from src.core.mixins.check_team_mixin import CheckTeamMixin
+from .dependencies import CheckTeamLogic
 from src.core.exceptions import (
     ForbiddenError,
     InvalidTransitionError,
@@ -11,7 +11,7 @@ from src.models.users import User, UserRole
 from src.core.interfaces.unit_of_work import IUnitOfWork
 
 
-class TaskService(CheckTeamMixin):
+class TaskService:
     async def create_task(
         self,
         description: str,
@@ -28,7 +28,7 @@ class TaskService(CheckTeamMixin):
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can create tasks")
 
-            team_id = await self._check_user_team(
+            team_id = await CheckTeamLogic.check_user_team(
                 uow, current_user, executor_id
             )
 
@@ -59,9 +59,13 @@ class TaskService(CheckTeamMixin):
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can assign executor")
 
-            task = await self._check_task_team(uow, current_user, task_id)
+            task = await CheckTeamLogic.check_task_team(
+                uow, current_user, task_id
+            )
 
-            await self._check_user_team(uow, current_user, executor_id)
+            await CheckTeamLogic.check_user_team(
+                uow, current_user, executor_id
+            )
 
             task.executor_id = executor_id
             updated_task = await uow.tasks_repo.update(task)
@@ -84,7 +88,9 @@ class TaskService(CheckTeamMixin):
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can update tasks")
 
-            task = await self._check_task_team(uow, current_user, task_id)
+            task = await CheckTeamLogic.check_task_team(
+                uow, current_user, task_id
+            )
 
             if description:
                 task.description = description
@@ -112,7 +118,7 @@ class TaskService(CheckTeamMixin):
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can delete tasks")
 
-            await self._check_task_team(uow, current_user, task_id)
+            await CheckTeamLogic.check_task_team(uow, current_user, task_id)
             await uow.tasks_repo.delete(task_id)
 
     async def change_status(
@@ -128,7 +134,9 @@ class TaskService(CheckTeamMixin):
         Executor - только статусы DONE и IN_PROGRESS
         """
         async with uow:
-            task = await self._check_task_team(uow, current_user, task_id)
+            task = await CheckTeamLogic.check_task_team(
+                uow, current_user, task_id
+            )
 
             if not self._can_change_status(task, new_status, current_user):
                 raise ForbiddenError(
@@ -166,7 +174,9 @@ class TaskService(CheckTeamMixin):
         Только для admin и исполнителя задачи
         """
         async with uow:
-            task = await self._check_task_team(uow, current_user, task_id)
+            task = await CheckTeamLogic.check_task_team(
+                uow, current_user, task_id
+            )
 
             if (
                 current_user.role == UserRole.ADMIN
@@ -193,7 +203,9 @@ class TaskService(CheckTeamMixin):
                 raise ForbiddenError("You're not in a team")
             if current_user.role == UserRole.ADMIN:
                 if user_id:
-                    await self._check_user_team(uow, current_user, user_id)
+                    await CheckTeamLogic.check_user_team(
+                        uow, current_user, user_id
+                    )
                     tasks = await uow.tasks_repo.get_by_executor(
                         user_id, current_user.team_id
                     )
