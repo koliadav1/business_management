@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from src.core.mixins.check_team_mixin import CheckTeamMixin
+from .dependencies import CheckTeamLogic
 from src.core.exceptions import (
     EvaluationNotFoundError,
     ForbiddenError,
@@ -13,7 +13,7 @@ from src.models.users import User, UserRole
 from src.models.tasks import Task, TaskStatus
 
 
-class EvaluationService(CheckTeamMixin):
+class EvaluationService:
     async def rate_task(
         self,
         task_id: int,
@@ -33,7 +33,9 @@ class EvaluationService(CheckTeamMixin):
             if not 1 <= rating <= 5:
                 raise ValueError("Rating must be between 1 and 5")
 
-            task = await self._check_task_team(uow, current_user, task_id)
+            task = await CheckTeamLogic.check_task_team(
+                uow, current_user, task_id
+            )
 
             if task.executor_id == current_user.id:
                 raise ForbiddenError("You can't rate your own tasks")
@@ -78,7 +80,7 @@ class EvaluationService(CheckTeamMixin):
                     raise ForbiddenError("You are not in the team")
 
                 if user_id:
-                    team_id = await self._check_user_team(
+                    team_id = await CheckTeamLogic.check_user_team(
                         uow, current_user, user_id
                     )
                     evaluations = (
@@ -115,7 +117,7 @@ class EvaluationService(CheckTeamMixin):
 
             if user_id:
                 if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
-                    team_id = await self._check_user_team(
+                    team_id = await CheckTeamLogic.check_user_team(
                         uow, current_user, user_id
                     )
                     evaluations = (
@@ -150,7 +152,7 @@ class EvaluationService(CheckTeamMixin):
         async with uow:
             if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
                 if user_id:
-                    team_id = await self._check_user_team(
+                    team_id = await CheckTeamLogic.check_user_team(
                         uow, current_user, user_id
                     )
                     stats = await uow.evaluations_repo.get_statistics(
@@ -190,7 +192,7 @@ class EvaluationService(CheckTeamMixin):
                     "Only admins and managers can delete evaluations"
                 )
 
-            await self._check_task_team(uow, current_user, task_id)
+            await CheckTeamLogic.check_task_team(uow, current_user, task_id)
 
             evaluation = await uow.evaluations_repo.get_by_task(task_id)
             if not evaluation:

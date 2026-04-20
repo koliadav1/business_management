@@ -47,11 +47,14 @@ class ITeamsRepository(IRepository[Team]):
         pass
 
     @abstractmethod
-    async def is_member(
-        self, team_id: int, user_id: int, user_role: UserRole | None = None
-    ) -> bool:
+    async def is_members(
+        self,
+        team_id: int,
+        user_ids: List[int],
+        user_role: UserRole | None = None,
+    ) -> List[int]:
         """
-        Является ли пользователь членом команды
+        Являются ли пользователи членами команды
         с дополнительной проверкой по роли
         """
         pass

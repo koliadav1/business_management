@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import case, func, select
 
 from src.models.tasks import Task
 from src.repositories.base_repository import SQLRepository
@@ -105,7 +105,7 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
                 Task,
             )
             .join(Task, Evaluation.task_id == Task.id)
-            .where(and_(Task.executor_id == user_id, Task.team_id == team_id))
+            .where(Task.executor_id == user_id, Task.team_id == team_id)
         )
 
         result = await self._session.execute(query)

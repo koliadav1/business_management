@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from src.models.evaluations import Evaluation
     from src.models.tasks import Task
     from src.models.teams import Team
+    from src.models.meetings import Meeting
 
 
 class UserRole(Enum):
@@ -55,6 +56,15 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     )
     evaluations: Mapped[List["Evaluation"]] = relationship(
         back_populates="rater", foreign_keys="Evaluation.rater_id"
+    )
+    initiated_meetings: Mapped[List["Meeting"]] = relationship(
+        back_populates="initiator", foreign_keys="Meeting.initiator_id"
+    )
+    meetings: Mapped[List["Meeting"]] = relationship(
+        back_populates="members",
+        secondary="meeting_members",
+        primaryjoin="User.id == MeetingMember.member_id",
+        secondaryjoin="Meeting.id == MeetingMember.meeting_id",
     )
 
     def __str__(self):

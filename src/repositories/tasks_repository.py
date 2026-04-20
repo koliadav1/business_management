@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 
 from .base_repository import SQLRepository
 from src.core.interfaces.repositories.tasks_repository import ITasksRepository
@@ -18,7 +18,7 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         """Получить все задачи для конкретного исполнителя"""
         result = await self._session.execute(
             select(Task).where(
-                and_(Task.executor_id == executor_id, Task.team_id == team_id)
+                Task.executor_id == executor_id, Task.team_id == team_id
             )
         )
         return result.scalars().all()
@@ -42,12 +42,10 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
     ) -> List[Task]:
         """Получить просроченные задачи конкретного пользователя"""
         query = select(Task).where(
-            and_(
-                Task.executor_id == user_id,
-                Task.deadline < datetime.now(),
-                Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
-                Task.team_id == team_id,
-            )
+            Task.executor_id == user_id,
+            Task.deadline < datetime.now(),
+            Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
+            Task.team_id == team_id,
         )
         result = await self._session.execute(query)
         return result.scalars().all()
@@ -55,11 +53,9 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
     async def get_overdue_for_team(self, team_id: int) -> List[Task]:
         """Получить все просроченные задачи"""
         query = select(Task).where(
-            and_(
-                Task.deadline < datetime.now(),
-                Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
-                Task.team_id == team_id,
-            )
+            Task.deadline < datetime.now(),
+            Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
+            Task.team_id == team_id,
         )
         result = await self._session.execute(query)
         return result.scalars().all()
