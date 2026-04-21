@@ -13,14 +13,26 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         super().__init__(session, Task)
 
     async def get_by_executor(
-        self, executor_id: int, team_id: int
+        self,
+        executor_id: int,
+        team_id: int,
+        status: TaskStatus | None = None,
+        deadline_from: datetime | None = None,
+        deadline_to: datetime | None = None,
     ) -> List[Task]:
         """Получить все задачи для конкретного исполнителя"""
-        result = await self._session.execute(
-            select(Task).where(
-                Task.executor_id == executor_id, Task.team_id == team_id
-            )
+        query = select(Task).where(
+            Task.executor_id == executor_id, Task.team_id == team_id
         )
+
+        if status:
+            query = query.where(Task.status == status)
+        if deadline_from:
+            query = query.where(Task.deadline >= deadline_from)
+        if deadline_to:
+            query = query.where(Task.deadline <= deadline_to)
+
+        result = await self._session.execute(query)
         return result.scalars().all()
 
     async def get_by_author(self, author_id: int) -> List[Task]:
@@ -71,8 +83,21 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
             await self._session.refresh(task)
         return task
 
-    async def get_by_team(self, team_id):
-        result = await self._session.execute(
-            select(Task).where(Task.team_id == team_id)
-        )
+    async def get_by_team(
+        self,
+        team_id: int,
+        status: TaskStatus | None = None,
+        deadline_from: datetime | None = None,
+        deadline_to: datetime | None = None,
+    ) -> List[Task]:
+        query = select(Task).where(Task.team_id == team_id)
+
+        if status:
+            query = query.where(Task.status == status)
+        if deadline_from:
+            query = query.where(Task.deadline >= deadline_from)
+        if deadline_to:
+            query = query.where(Task.deadline <= deadline_to)
+
+        result = await self._session.execute(query)
         return result.scalars().all()

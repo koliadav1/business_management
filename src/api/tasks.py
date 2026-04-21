@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -73,6 +74,12 @@ async def get_tasks(
     status: TaskStatus | None = Query(
         None, description="Фильтр по статусу задачи"
     ),
+    deadline_from: datetime | None = Query(
+        None, description="Начальная дата для фильтрации по дедлайну"
+    ),
+    deadline_to: datetime | None = Query(
+        None, description="Конечная дата для фильтрации по дедлайну"
+    ),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: TaskService = Depends(),
@@ -83,8 +90,13 @@ async def get_tasks(
     Обычный пользователь видит только свои заачи
     """
     try:
-        tasks = await service.get_user_tasks(
-            uow=uow, current_user=current_user, status=status, user_id=user_id
+        tasks = await service.get_tasks(
+            uow=uow,
+            current_user=current_user,
+            status=status,
+            user_id=user_id,
+            deadline_from=deadline_from,
+            deadline_to=deadline_to,
         )
         return tasks
     except ForbiddenError as e:

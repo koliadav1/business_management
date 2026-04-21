@@ -186,12 +186,14 @@ class TaskService:
             else:
                 raise ForbiddenError("You don't have access to this task")
 
-    async def get_user_tasks(
+    async def get_tasks(
         self,
         uow: IUnitOfWork,
         current_user: User,
         status: TaskStatus | None = None,
         user_id: int | None = None,
+        deadline_from: datetime | None = None,
+        deadline_to: datetime | None = None,
     ) -> List[Task]:
         """
         Получить задачи пользователя
@@ -207,18 +209,27 @@ class TaskService:
                         uow, current_user, user_id
                     )
                     tasks = await uow.tasks_repo.get_by_executor(
-                        user_id, current_user.team_id
+                        user_id,
+                        current_user.team_id,
+                        status,
+                        deadline_from,
+                        deadline_to,
                     )
                 else:
                     tasks = await uow.tasks_repo.get_by_team(
-                        current_user.team_id
+                        current_user.team_id,
+                        status,
+                        deadline_from,
+                        deadline_to,
                     )
             else:
                 tasks = await uow.tasks_repo.get_by_executor(
-                    current_user.id, current_user.team_id
+                    current_user.id,
+                    current_user.team_id,
+                    status,
+                    deadline_from,
+                    deadline_to,
                 )
-            if status:
-                tasks = [task for task in tasks if task.status == status]
 
         return tasks
 
