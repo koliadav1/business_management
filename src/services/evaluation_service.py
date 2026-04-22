@@ -30,9 +30,6 @@ class EvaluationService:
             if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                 raise ForbiddenError("Only admins and managers can rate tasks")
 
-            if not 1 <= rating <= 5:
-                raise ValueError("Rating must be between 1 and 5")
-
             task = await CheckTeamLogic.check_task_team(
                 uow, current_user, task_id
             )

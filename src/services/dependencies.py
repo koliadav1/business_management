@@ -18,7 +18,7 @@ class CheckTeamLogic:
 
     @staticmethod
     async def check_user_team(
-        self, uow: IUnitOfWork, user_id1: User, user_id2: int
+        uow: IUnitOfWork, user_id1: User, user_id2: int
     ) -> int:
         if user_id1.team_id is None:
             raise ForbiddenError(f"User {user_id1} is not in a team")
@@ -36,7 +36,7 @@ class CheckTeamLogic:
 
     @staticmethod
     async def check_task_team(
-        self, uow: IUnitOfWork, admin_user: User, task_id: int
+        uow: IUnitOfWork, admin_user: User, task_id: int
     ) -> Task:
         if admin_user.team_id is None:
             raise ForbiddenError("Admin is not in a team")

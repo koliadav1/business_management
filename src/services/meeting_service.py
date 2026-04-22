@@ -40,12 +40,6 @@ class MeetingService:
                     "You must be in a team to create meetings"
                 )
 
-            if start_time < datetime.now(timezone.utc):
-                raise ValueError("Meeting time can't be in the past")
-
-            if duration_m <= 0:
-                raise ValueError("Meeting duration must be positive")
-
             meeting = Meeting(
                 description=description,
                 start_time=start_time,
@@ -117,13 +111,9 @@ class MeetingService:
                 meeting.description = description
 
             if start_time is not None:
-                if start_time < datetime.now(timezone.utc):
-                    raise ValueError("Meeting time can't be in the past")
                 meeting.start_time = start_time
 
             if duration_m is not None:
-                if duration_m <= 0:
-                    raise ValueError("Meeting duration must be positive")
                 meeting.duration_m = duration_m
 
             if start_time is not None or duration_m is not None:

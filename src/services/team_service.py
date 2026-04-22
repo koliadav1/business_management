@@ -50,19 +50,14 @@ class TeamService:
         Получить информацию о команде
         """
         async with uow:
+            if team_id is None:
+                raise TeamNotFoundError("You have no team")
             team = await uow.teams_repo.get(team_id)
             if not team:
                 raise TeamNotFoundError(
                     f"Team with id {team_id} does not exist"
                 )
         return team
-
-    async def get_my_team(
-        self, uow: IUnitOfWork, current_user: User
-    ) -> Team | None:
-        """Получить команду текущего пользователя"""
-        async with uow:
-            return await uow.teams_repo.get_user_team(current_user.id)
 
     async def get_team_members(
         self,

@@ -96,8 +96,6 @@ class TaskService:
                 task.description = description
 
             if deadline:
-                if deadline < datetime.now(timezone.utc):
-                    raise ValueError("Deadline can't be in the past")
                 task.deadline = deadline
 
             updated_task = await uow.tasks_repo.update(task)

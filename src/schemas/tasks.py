@@ -1,14 +1,14 @@
 from pydantic import ConfigDict, BaseModel, Field
 
 from src.models.tasks import TaskStatus
-from .dependencies import UtcDateTime
+from .dependencies import UtcDateTime, FutureUtcDateTime
 
 
 class TaskCreate(BaseModel):
     description: str = Field(
         ..., max_length=1024, description="Описание задачи"
     )
-    deadline: UtcDateTime = Field(..., description="Дедлайн задачи")
+    deadline: FutureUtcDateTime = Field(..., description="Дедлайн задачи")
     executor_id: int = Field(..., description="ID исполнителя задачи")
 
 
@@ -16,7 +16,9 @@ class TaskUpdate(BaseModel):
     description: str | None = Field(
         None, max_length=1024, description="Описание задачи"
     )
-    deadline: UtcDateTime | None = Field(None, description="Дедлайн задачи")
+    deadline: FutureUtcDateTime | None = Field(
+        None, description="Дедлайн задачи"
+    )
 
 
 class TaskAssignExecutor(BaseModel):

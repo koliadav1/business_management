@@ -1,65 +1,94 @@
-class ForbiddenError(Exception):
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+
+class AppBaseException(Exception):
+    status_code = 400
+
+
+class ForbiddenError(AppBaseException):
+    status_code = 403
+
+
+class TaskNotInTeamError(ForbiddenError):
     pass
 
 
-class TaskNotFoundError(Exception):
+class NotFoundError(AppBaseException):
+    status_code = 404
+
+
+class TaskNotFoundError(NotFoundError):
     pass
 
 
-class UserNotFoundError(Exception):
+class UserNotFoundError(NotFoundError):
     pass
 
 
-class TeamNotFoundError(Exception):
+class TeamNotFoundError(NotFoundError):
     pass
 
 
-class EvaluationNotFoundError(Exception):
+class EvaluationNotFoundError(NotFoundError):
     pass
 
 
-class MeetingNotFoundError(Exception):
+class MeetingNotFoundError(NotFoundError):
     pass
 
 
-class UserNotInTeamError(Exception):
+class ConflictError(AppBaseException):
+    status_code = 409
+
+
+class UserNotInTeamError(ConflictError):
     pass
 
 
-class TaskNotInTeamError(Exception):
+class TeamAlreadyExistsError(ConflictError):
     pass
 
 
-# TODO сгруппировать исключения выше и сделать код api чище благодаря наследованию исключений
-
-
-class InvalidTransitionError(Exception):
+class UserAlreadyInTeamError(ConflictError):
     pass
 
 
-class TeamAlreadyExistsError(Exception):
+class OverlappingTimeError(ConflictError):
     pass
 
 
-class UserAlreadyInTeamError(Exception):
+class MeetingCancelledError(ConflictError):
     pass
 
 
-class InvalidRoleError(Exception):
+class MeetingAlreadyOverError(ConflictError):
     pass
 
 
-class TaskNotCompletedError(Exception):
+class TaskNotCompletedError(ConflictError):
     pass
 
 
-class OverlappingTimeError(Exception):
-    pass
+class InvalidTransitionError(AppBaseException):
+    status_code = 400
 
 
-class MeetingCancelledError(Exception):
-    pass
+class InvalidRoleError(AppBaseException):
+    status_code = 400
 
 
-class MeetingAlreadyOverError(Exception):
-    pass
+class DateRangeValidationError(AppBaseException):
+    status_code = 422
+
+
+def register_exception_handlers(app: FastAPI):
+
+    @app.exception_handler(AppBaseException)
+    async def base_app_handler(request: Request, exc: AppBaseException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "detail": [{"msg": str(exc), "type": exc.__class__.__name__}]
+            },
+        )
