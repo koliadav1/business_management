@@ -50,19 +50,14 @@ class TeamService:
         Получить информацию о команде
         """
         async with uow:
+            if team_id is None:
+                raise TeamNotFoundError("You have no team")
             team = await uow.teams_repo.get(team_id)
             if not team:
                 raise TeamNotFoundError(
                     f"Team with id {team_id} does not exist"
                 )
         return team
-
-    async def get_my_team(
-        self, uow: IUnitOfWork, current_user: User
-    ) -> Team | None:
-        """Получить команду текущего пользователя"""
-        async with uow:
-            return await uow.teams_repo.get_user_team(current_user.id)
 
     async def get_team_members(
         self,
@@ -99,7 +94,10 @@ class TeamService:
         Только для admin и manager команды.
         """
         async with uow:
-            if not await self._can_manage_team(uow, team_id, current_user):
+            if (
+                current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]
+                or current_user.team_id != team_id
+            ):
                 raise ForbiddenError(
                     "Only team admins and managers can add members"
                 )
@@ -134,9 +132,7 @@ class TeamService:
         async with uow:
             if current_user.team_id is None:
                 raise ForbiddenError("You're not in team")
-            if not await self._can_manage_team(
-                uow, current_user.team_id, current_user
-            ):
+            if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                 raise ForbiddenError(
                     "Only team admins and managers can remove members"
                 )
@@ -168,7 +164,10 @@ class TeamService:
         Только для admin и manager команды
         """
         async with uow:
-            if not await self._can_manage_team(uow, team_id, current_user):
+            if (
+                current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]
+                or current_user.team_id != team_id
+            ):
                 raise ForbiddenError(
                     "Only team admins and managers can change roles"
                 )
@@ -216,18 +215,3 @@ class TeamService:
         """Получить список всех команд"""
         async with uow:
             return await uow.teams_repo.get_all()
-
-    async def _can_manage_team(
-        self, uow: IUnitOfWork, team_id: int, current_user: User
-    ):
-        if await uow.teams_repo.is_member(
-            team_id, current_user.id, UserRole.MANAGER
-        ):
-            return True
-
-        if await uow.teams_repo.is_member(
-            team_id, current_user.id, UserRole.ADMIN
-        ):
-            return True
-
-        return False

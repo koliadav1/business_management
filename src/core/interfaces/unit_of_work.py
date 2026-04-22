@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 
-from src.core.interfaces.repositories.evaluations_repository import (
+from src.core.interfaces.repositories import (
+    ITeamsRepository,
+    IUsersRepository,
+    ITasksRepository,
+    IMeetingsRepository,
     IEvaluationsRepository,
 )
-from src.core.interfaces.repositories.teams_repository import ITeamsRepository
-from src.core.interfaces.repositories.users_repository import IUsersRepository
-from src.core.interfaces.repositories.tasks_repository import ITasksRepository
 
 
 class IUnitOfWork(ABC):
@@ -13,6 +14,7 @@ class IUnitOfWork(ABC):
     users_repo: IUsersRepository
     teams_repo: ITeamsRepository
     evaluations_repo: IEvaluationsRepository
+    meetings_repo: IMeetingsRepository
 
     @abstractmethod
     async def __aenter__(self):

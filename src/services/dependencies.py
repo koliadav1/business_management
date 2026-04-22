@@ -10,11 +10,15 @@ from src.models.users import User
 from src.models.tasks import Task
 
 
-class CheckTeamMixin:
-    """Миксин для сервисов, использующих проверки на принадлежность команде"""
+class CheckTeamLogic:
+    """
+    Статические методы для сервисов,
+    использующих проверки на принадлежность команде
+    """
 
-    async def _check_user_team(
-        self, uow: IUnitOfWork, user_id1: User, user_id2: int
+    @staticmethod
+    async def check_user_team(
+        uow: IUnitOfWork, user_id1: User, user_id2: int
     ) -> int:
         if user_id1.team_id is None:
             raise ForbiddenError(f"User {user_id1} is not in a team")
@@ -30,8 +34,9 @@ class CheckTeamMixin:
 
         return user_id1.team_id
 
-    async def _check_task_team(
-        self, uow: IUnitOfWork, admin_user: User, task_id: int
+    @staticmethod
+    async def check_task_team(
+        uow: IUnitOfWork, admin_user: User, task_id: int
     ) -> Task:
         if admin_user.team_id is None:
             raise ForbiddenError("Admin is not in a team")

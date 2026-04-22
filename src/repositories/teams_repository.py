@@ -1,7 +1,6 @@
 from typing import List
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.models.users import User, UserRole
 from src.core.interfaces.repositories.teams_repository import ITeamsRepository
@@ -32,19 +31,6 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         result = await self._session.execute(query)
         return result.scalars().all()
 
-    async def get_user_team(self, user_id: int) -> Team | None:
-        """Получить команду пользователя"""
-        query = (
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.team))
-        )
-        result = await self._session.execute(query)
-        user = result.scalar_one_or_none()
-        if user and user.team:
-            return user.team
-        return None
-
     async def add_member(
         self,
         team: Team,
@@ -70,17 +56,24 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         user.role = new_role
         await self._session.flush()
 
-    async def is_member(
-        self, team_id: int, user_id: int, user_role: UserRole | None = None
-    ) -> bool:
+    async def is_members(
+        self,
+        team_id: int,
+        user_ids: List[int],
+        user_role: UserRole | None = None,
+    ) -> List[int]:
         """
-        Является ли пользователь членом команды
+        Являются ли пользователи членами команды
         с дополнительной проверкой по роли
         """
         query = select(User).where(
-            and_(User.id == user_id, User.team_id == team_id)
+            User.id.in_(user_ids), User.team_id == team_id
         )
         if user_role:
             query = query.where(User.role == user_role)
+
         result = await self._session.execute(query)
-        return result.scalar_one_or_none() is not None
+        valid_users = result.scalars().all()
+
+        invalid_users = list(set(user_ids) - set(valid_users))
+        return invalid_users
