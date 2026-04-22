@@ -1,8 +1,7 @@
-from datetime import datetime
 from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
+from src.schemas.base import DateFilter
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.tasks import TaskStatus
 from src.core.exceptions import (
@@ -76,12 +75,7 @@ async def get_tasks(
     status: TaskStatus | None = Query(
         None, description="Фильтр по статусу задачи"
     ),
-    deadline_from: datetime | None = Query(
-        None, description="Начальная дата для фильтрации по дедлайну"
-    ),
-    deadline_to: datetime | None = Query(
-        None, description="Конечная дата для фильтрации по дедлайну"
-    ),
+    date_filters: DateFilter = Depends(),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: TaskService = Depends(),
@@ -97,8 +91,8 @@ async def get_tasks(
             current_user=current_user,
             status=status,
             user_id=user_id,
-            deadline_from=deadline_from,
-            deadline_to=deadline_to,
+            deadline_from=date_filters.start_date,
+            deadline_to=date_filters.end_date,
         )
         return tasks
     except ForbiddenError as e:
@@ -184,8 +178,6 @@ async def update_task(
         raise HTTPException(status_code=403, detail=str(e))
     except TaskNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except TaskNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
 

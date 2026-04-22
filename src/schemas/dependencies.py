@@ -10,3 +10,14 @@ def validate_utc(v: datetime) -> datetime:
 
 
 UtcDateTime = Annotated[datetime, AfterValidator(validate_utc)]
+
+
+def validate_future_time(value: UtcDateTime | None) -> UtcDateTime | None:
+    if value is not None and value < datetime.now(timezone.utc):
+        raise ValueError("Date and time can't be in the past")
+    return value
+
+
+FutureUtcDateTime = Annotated[
+    UtcDateTime, AfterValidator(validate_future_time)
+]

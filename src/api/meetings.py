@@ -1,8 +1,8 @@
-from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
+from src.schemas.base import DateFilter
 from src.core.exceptions import (
     ForbiddenError,
     MeetingAlreadyOverError,
@@ -57,8 +57,6 @@ async def create_meeting(
         return meeting
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except UserNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except OverlappingTimeError as e:
@@ -121,12 +119,7 @@ async def get_team_meetings(
     include_finished: bool = Query(
         True, description="Включить прошедшие и текущие встречи"
     ),
-    start_date: datetime | None = Query(
-        None, description="Начальная дата для фильтрации"
-    ),
-    end_date: datetime | None = Query(
-        None, description="Конечная дата для фильтрации"
-    ),
+    date_filters: DateFilter = Depends(),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: MeetingService = Depends(),
@@ -138,8 +131,8 @@ async def get_team_meetings(
             uow=uow,
             include_cancelled=include_cancelled,
             include_finished=include_finished,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=date_filters.start_date,
+            end_date=date_filters.end_date,
         )
         return meetings
     except ForbiddenError as e:
@@ -237,8 +230,6 @@ async def update_meeting(
     except OverlappingTimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
     except MeetingCancelledError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 

@@ -1,3 +1,7 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+
 class ForbiddenError(Exception):
     pass
 
@@ -68,3 +72,16 @@ class MeetingCancelledError(Exception):
 
 class MeetingAlreadyOverError(Exception):
     pass
+
+
+class DateRangeValidationError(Exception):
+    pass
+
+
+def register_exception_handlers(app: FastAPI):
+
+    @app.exception_handler(DateRangeValidationError)
+    async def date_range_handler(
+        request: Request, exc: DateRangeValidationError
+    ):
+        return JSONResponse(status_code=422, content={"detail": str(exc)})

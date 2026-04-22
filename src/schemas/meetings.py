@@ -1,15 +1,20 @@
 from typing import List
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+)
 
 from src.models.users import UserRole
-from .dependencies import UtcDateTime
+from .dependencies import UtcDateTime, FutureUtcDateTime
 
 
 class MeetingCreate(BaseModel):
     description: str = Field(
         ..., max_length=1024, description="Описание встречи"
     )
-    start_time: UtcDateTime = Field(
+    start_time: FutureUtcDateTime = Field(
         ..., description="Дата и время начала встречи"
     )
     duration_m: int = Field(
@@ -24,7 +29,7 @@ class MeetingUpdate(BaseModel):
     description: str | None = Field(
         None, max_length=1024, description="Описание встречи"
     )
-    start_time: UtcDateTime | None = Field(
+    start_time: FutureUtcDateTime | None = Field(
         None, description="Дата и время начала встречи"
     )
     duration_m: int | None = Field(

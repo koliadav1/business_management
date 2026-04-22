@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
+from src.core.exceptions import register_exception_handlers
 from src.schemas.users import UserCreate, UserRead, UserUpdate
 from src.core.database import engine
 from src.utils.dependencies import auth_backend, fastapi_users
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(description="Система упрравления бизнесом", lifespan=lifespan)
 setup_admin(app)
+register_exception_handlers(app)
 
 app.include_router(tasks_router)
 app.include_router(teams_router)
