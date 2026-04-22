@@ -5,10 +5,10 @@ from src.schemas.users import UserRead
 from src.core.exceptions import (
     ForbiddenError,
     InvalidRoleError,
+    NotFoundError,
     TeamAlreadyExistsError,
     TeamNotFoundError,
     UserAlreadyInTeamError,
-    UserNotFoundError,
     UserNotInTeamError,
 )
 from src.services.team_service import TeamService
@@ -164,9 +164,7 @@ async def add_member(
             role=request.role,
         )
         return user
-    except TeamNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except UserNotFoundError as e:
+    except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
@@ -196,9 +194,7 @@ async def remove_member(
             user_id=user_id,
             current_user=current_user,
         )
-    except TeamNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except UserNotFoundError as e:
+    except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
@@ -233,9 +229,7 @@ async def update_member_role(
             current_user=current_user,
         )
         return user
-    except TeamNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except UserNotFoundError as e:
+    except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))

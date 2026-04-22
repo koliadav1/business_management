@@ -4,8 +4,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from src.core.exceptions import (
-    EvaluationNotFoundError,
     ForbiddenError,
+    NotFoundError,
     TaskNotCompletedError,
     TaskNotFoundError,
     TaskNotInTeamError,
@@ -199,9 +199,7 @@ async def delete_evaluation(
         )
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotFoundError as e:
+    except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except TaskNotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except EvaluationNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))

@@ -2,35 +2,40 @@ class ForbiddenError(Exception):
     pass
 
 
-class TaskNotFoundError(Exception):
+class NotFoundError(Exception):
     pass
 
 
-class UserNotFoundError(Exception):
+class TaskNotFoundError(NotFoundError):
     pass
 
 
-class TeamNotFoundError(Exception):
+class UserNotFoundError(NotFoundError):
     pass
 
 
-class EvaluationNotFoundError(Exception):
+class TeamNotFoundError(NotFoundError):
     pass
 
 
-class MeetingNotFoundError(Exception):
+class EvaluationNotFoundError(NotFoundError):
     pass
 
 
-class UserNotInTeamError(Exception):
+class MeetingNotFoundError(NotFoundError):
     pass
 
 
-class TaskNotInTeamError(Exception):
+class NotInTeamError(Exception):
     pass
 
 
-# TODO сгруппировать исключения выше и сделать код api чище благодаря наследованию исключений
+class UserNotInTeamError(NotInTeamError):
+    pass
+
+
+class TaskNotInTeamError(NotInTeamError):
+    pass
 
 
 class InvalidTransitionError(Exception):

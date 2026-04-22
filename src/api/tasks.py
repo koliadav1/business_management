@@ -8,6 +8,8 @@ from src.models.tasks import TaskStatus
 from src.core.exceptions import (
     ForbiddenError,
     InvalidTransitionError,
+    NotFoundError,
+    NotInTeamError,
     TaskNotFoundError,
     TaskNotInTeamError,
     UserNotFoundError,
@@ -215,13 +217,9 @@ async def assign_executor(
         return task
     except ForbiddenError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotFoundError as e:
+    except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotInTeamError as e:
+    except NotInTeamError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
 
