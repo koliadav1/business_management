@@ -1,7 +1,6 @@
 from typing import List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.models.users import User, UserRole
 from src.core.interfaces.repositories.teams_repository import ITeamsRepository
@@ -31,19 +30,6 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
 
         result = await self._session.execute(query)
         return result.scalars().all()
-
-    async def get_user_team(self, user_id: int) -> Team | None:
-        """Получить команду пользователя"""
-        query = (
-            select(User)
-            .where(User.id == user_id)
-            .options(selectinload(User.team))
-        )
-        result = await self._session.execute(query)
-        user = result.scalar_one_or_none()
-        if user and user.team:
-            return user.team
-        return None
 
     async def add_member(
         self,

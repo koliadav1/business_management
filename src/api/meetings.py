@@ -1,17 +1,8 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from src.schemas.base import DateFilter
-from src.core.exceptions import (
-    ForbiddenError,
-    MeetingAlreadyOverError,
-    MeetingCancelledError,
-    MeetingNotFoundError,
-    OverlappingTimeError,
-    UserNotFoundError,
-    UserNotInTeamError,
-)
 from src.services.meeting_service import MeetingService
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.users import User
@@ -45,22 +36,15 @@ async def create_meeting(
     Создание новой встречи.
     Только для admin и manager
     """
-    try:
-        meeting = await service.create_meeting(
-            description=meeting_data.description,
-            start_time=meeting_data.start_time,
-            duration_m=meeting_data.duration_m,
-            member_ids=meeting_data.member_ids,
-            current_user=current_user,
-            uow=uow,
-        )
-        return meeting
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except OverlappingTimeError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+    meeting = await service.create_meeting(
+        description=meeting_data.description,
+        start_time=meeting_data.start_time,
+        duration_m=meeting_data.duration_m,
+        member_ids=meeting_data.member_ids,
+        current_user=current_user,
+        uow=uow,
+    )
+    return meeting
 
 
 @router.get(
@@ -89,21 +73,14 @@ async def get_user_meetings(
     Admin получает встречи любого пользователя по ID
     Остальные члены команды получают свои встречи
     """
-    try:
-        meetings = await service.get_user_meetings(
-            current_user=current_user,
-            uow=uow,
-            user_id=user_id,
-            include_cancelled=include_cancelled,
-            include_finished=include_finished,
-        )
-        return meetings
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    meetings = await service.get_user_meetings(
+        current_user=current_user,
+        uow=uow,
+        user_id=user_id,
+        include_cancelled=include_cancelled,
+        include_finished=include_finished,
+    )
+    return meetings
 
 
 @router.get(
@@ -125,18 +102,15 @@ async def get_team_meetings(
     service: MeetingService = Depends(),
 ):
     """Получение всех встреч внутри команды"""
-    try:
-        meetings = await service.get_team_meetings(
-            current_user=current_user,
-            uow=uow,
-            include_cancelled=include_cancelled,
-            include_finished=include_finished,
-            start_date=date_filters.start_date,
-            end_date=date_filters.end_date,
-        )
-        return meetings
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    meetings = await service.get_team_meetings(
+        current_user=current_user,
+        uow=uow,
+        include_cancelled=include_cancelled,
+        include_finished=include_finished,
+        start_date=date_filters.start_date,
+        end_date=date_filters.end_date,
+    )
+    return meetings
 
 
 @router.get(
@@ -158,13 +132,10 @@ async def get_upcoming_meetings(
     service: MeetingService = Depends(),
 ):
     """Получение ближайших встреч пользователя"""
-    try:
-        meetings = await service.get_upcoming_meetings(
-            current_user=current_user, uow=uow, minutes_ahead=minutes_ahead
-        )
-        return meetings
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    meetings = await service.get_upcoming_meetings(
+        current_user=current_user, uow=uow, minutes_ahead=minutes_ahead
+    )
+    return meetings
 
 
 @router.get(
@@ -184,15 +155,10 @@ async def get_meeting(
     Участники встречи и admin получают встречу со списком ее участников
     Остальные получают только информацию о встрече
     """
-    try:
-        meeting = await service.get_meeting(
-            meeting_id=meeting_id, current_user=current_user, uow=uow
-        )
-        return meeting
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except MeetingNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    meeting = await service.get_meeting(
+        meeting_id=meeting_id, current_user=current_user, uow=uow
+    )
+    return meeting
 
 
 @router.patch(
@@ -213,24 +179,15 @@ async def update_meeting(
     Обновление встречи.
     Только для admin и инициатора встречи
     """
-    try:
-        meeting = await service.update_meeting(
-            meeting_id=meeting_id,
-            description=meeting_data.description,
-            start_time=meeting_data.start_time,
-            duration_m=meeting_data.duration_m,
-            current_user=current_user,
-            uow=uow,
-        )
-        return meeting
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except MeetingNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except OverlappingTimeError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except MeetingCancelledError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    meeting = await service.update_meeting(
+        meeting_id=meeting_id,
+        description=meeting_data.description,
+        start_time=meeting_data.start_time,
+        duration_m=meeting_data.duration_m,
+        current_user=current_user,
+        uow=uow,
+    )
+    return meeting
 
 
 @router.patch(
@@ -249,19 +206,10 @@ async def cancel_meeting(
     Отмена встречи.
     Только для admin или инициатора встречи
     """
-    try:
-        meeting = await service.cancel_meeting(
-            meeting_id=meeting_id, current_user=current_user, uow=uow
-        )
-        return meeting
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except MeetingNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except MeetingAlreadyOverError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except MeetingCancelledError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    meeting = await service.cancel_meeting(
+        meeting_id=meeting_id, current_user=current_user, uow=uow
+    )
+    return meeting
 
 
 @router.post(
@@ -282,26 +230,13 @@ async def add_members_to_meeting(
     Добавление участников к встрече.
     Только для admin и инициатора встречи
     """
-    try:
-        meeting = await service.add_members_to_meeting(
-            meeting_id=meeting_id,
-            member_ids=data.member_ids,
-            current_user=current_user,
-            uow=uow,
-        )
-        return meeting
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except MeetingNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except MeetingAlreadyOverError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except MeetingCancelledError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except OverlappingTimeError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    meeting = await service.add_members_to_meeting(
+        meeting_id=meeting_id,
+        member_ids=data.member_ids,
+        current_user=current_user,
+        uow=uow,
+    )
+    return meeting
 
 
 @router.delete(
@@ -322,18 +257,9 @@ async def remove_member_from_meeting(
     Удаление участника из встречи.
     Только для admin и инициатора встречи
     """
-    try:
-        await service.remove_member_from_meeting(
-            meeting_id=meeting_id,
-            member_id=data.member_id,
-            current_user=current_user,
-            uow=uow,
-        )
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except MeetingNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except MeetingAlreadyOverError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except MeetingCancelledError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    await service.remove_member_from_meeting(
+        meeting_id=meeting_id,
+        member_id=data.member_id,
+        current_user=current_user,
+        uow=uow,
+    )

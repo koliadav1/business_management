@@ -2,12 +2,20 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 
-class ForbiddenError(Exception):
+class AppBaseException(Exception):
+    status_code = 400
+
+
+class ForbiddenError(AppBaseException):
+    status_code = 403
+
+
+class TaskNotInTeamError(ForbiddenError):
     pass
 
 
-class NotFoundError(Exception):
-    pass
+class NotFoundError(AppBaseException):
+    status_code = 404
 
 
 class TaskNotFoundError(NotFoundError):
@@ -30,58 +38,57 @@ class MeetingNotFoundError(NotFoundError):
     pass
 
 
-class NotInTeamError(Exception):
+class ConflictError(AppBaseException):
+    status_code = 409
+
+
+class UserNotInTeamError(ConflictError):
     pass
 
 
-class UserNotInTeamError(NotInTeamError):
+class TeamAlreadyExistsError(ConflictError):
     pass
 
 
-class TaskNotInTeamError(NotInTeamError):
+class UserAlreadyInTeamError(ConflictError):
     pass
 
 
-class InvalidTransitionError(Exception):
+class OverlappingTimeError(ConflictError):
     pass
 
 
-class TeamAlreadyExistsError(Exception):
+class MeetingCancelledError(ConflictError):
     pass
 
 
-class UserAlreadyInTeamError(Exception):
+class MeetingAlreadyOverError(ConflictError):
     pass
 
 
-class InvalidRoleError(Exception):
+class TaskNotCompletedError(ConflictError):
     pass
 
 
-class TaskNotCompletedError(Exception):
-    pass
+class InvalidTransitionError(AppBaseException):
+    status_code = 400
 
 
-class OverlappingTimeError(Exception):
-    pass
+class InvalidRoleError(AppBaseException):
+    status_code = 400
 
 
-class MeetingCancelledError(Exception):
-    pass
-
-
-class MeetingAlreadyOverError(Exception):
-    pass
-
-
-class DateRangeValidationError(Exception):
-    pass
+class DateRangeValidationError(AppBaseException):
+    status_code = 422
 
 
 def register_exception_handlers(app: FastAPI):
 
-    @app.exception_handler(DateRangeValidationError)
-    async def date_range_handler(
-        request: Request, exc: DateRangeValidationError
-    ):
-        return JSONResponse(status_code=422, content={"detail": str(exc)})
+    @app.exception_handler(AppBaseException)
+    async def base_app_handler(request: Request, exc: AppBaseException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "detail": [{"msg": str(exc), "type": exc.__class__.__name__}]
+            },
+        )

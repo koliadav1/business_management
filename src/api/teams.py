@@ -1,16 +1,7 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from src.schemas.users import UserRead
-from src.core.exceptions import (
-    ForbiddenError,
-    InvalidRoleError,
-    NotFoundError,
-    TeamAlreadyExistsError,
-    TeamNotFoundError,
-    UserAlreadyInTeamError,
-    UserNotInTeamError,
-)
 from src.services.team_service import TeamService
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.users import User, UserRole
@@ -42,20 +33,13 @@ async def create_team(
     Создание новой команды.
     Только для admin
     """
-    try:
-        team = await service.create_team(
-            uow=uow,
-            name=team_data.name,
-            description=team_data.description,
-            current_user=current_user,
-        )
-        return team
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except TeamAlreadyExistsError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except UserAlreadyInTeamError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+    team = await service.create_team(
+        uow=uow,
+        name=team_data.name,
+        description=team_data.description,
+        current_user=current_user,
+    )
+    return team
 
 
 @router.get(
@@ -85,9 +69,7 @@ async def get_my_team(
     """
     Получение данных о команде текущего пользователя
     """
-    team = await service.get_my_team(uow=uow, current_user=current_user)
-    if not team:
-        raise HTTPException(status_code=204, detail="User has no team")
+    team = await service.get_team(uow=uow, team_id=current_user.team_id)
     return team
 
 
@@ -102,11 +84,8 @@ async def get_team(
     service: TeamService = Depends(),
 ):
     """Получение базовой информации о команде"""
-    try:
-        team = await service.get_team(uow=uow, team_id=team_id)
-        return team
-    except TeamNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    team = await service.get_team(uow=uow, team_id=team_id)
+    return team
 
 
 @router.get(
@@ -126,15 +105,10 @@ async def get_team_members(
     Получение списка участников команды.
     Только для участников команды
     """
-    try:
-        members = await service.get_team_members(
-            uow=uow, team_id=team_id, current_user=current_user, role=role
-        )
-        return members
-    except TeamNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    members = await service.get_team_members(
+        uow=uow, team_id=team_id, current_user=current_user, role=role
+    )
+    return members
 
 
 @router.post(
@@ -155,21 +129,14 @@ async def add_member(
     Добавление пользователя в команду.
     Только для manager и admin команды
     """
-    try:
-        user = await service.add_member(
-            uow=uow,
-            team_id=team_id,
-            user_id=request.user_id,
-            current_user=current_user,
-            role=request.role,
-        )
-        return user
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserAlreadyInTeamError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+    user = await service.add_member(
+        uow=uow,
+        team_id=team_id,
+        user_id=request.user_id,
+        current_user=current_user,
+        role=request.role,
+    )
+    return user
 
 
 @router.delete(
@@ -188,18 +155,11 @@ async def remove_member(
     Удаление пользователя из команды.
     Только для admin и manager команды
     """
-    try:
-        await service.remove_member(
-            uow=uow,
-            user_id=user_id,
-            current_user=current_user,
-        )
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    await service.remove_member(
+        uow=uow,
+        user_id=user_id,
+        current_user=current_user,
+    )
 
 
 @router.patch(
@@ -220,23 +180,14 @@ async def update_member_role(
     Изменение роли участника команды.
     Только для admin и manager команды
     """
-    try:
-        user = await service.update_member_role(
-            uow=uow,
-            team_id=team_id,
-            user_id=user_id,
-            new_role=request.role,
-            current_user=current_user,
-        )
-        return user
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except InvalidRoleError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user = await service.update_member_role(
+        uow=uow,
+        team_id=team_id,
+        user_id=user_id,
+        new_role=request.role,
+        current_user=current_user,
+    )
+    return user
 
 
 @router.delete(
@@ -255,12 +206,6 @@ async def delete_team(
     Удаление команды.
     Только для admin команды
     """
-    try:
-        await service.delete_team(
-            uow=uow, team_id=team_id, current_user=current_user
-        )
-
-    except TeamNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    await service.delete_team(
+        uow=uow, team_id=team_id, current_user=current_user
+    )

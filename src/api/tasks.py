@@ -1,19 +1,9 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 
 from src.schemas.base import DateFilter
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.tasks import TaskStatus
-from src.core.exceptions import (
-    ForbiddenError,
-    InvalidTransitionError,
-    NotFoundError,
-    NotInTeamError,
-    TaskNotFoundError,
-    TaskNotInTeamError,
-    UserNotFoundError,
-    UserNotInTeamError,
-)
 from src.services.task_service import TaskService
 from src.models.users import User
 from src.schemas.tasks import (
@@ -45,21 +35,14 @@ async def create_task(
     Создание новой задачи.
     Только для admin
     """
-    try:
-        task = await service.create_task(
-            uow=uow,
-            description=task_data.description,
-            deadline=task_data.deadline,
-            executor_id=task_data.executor_id,
-            current_user=current_user,
-        )
-        return task
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    task = await service.create_task(
+        uow=uow,
+        description=task_data.description,
+        deadline=task_data.deadline,
+        executor_id=task_data.executor_id,
+        current_user=current_user,
+    )
+    return task
 
 
 @router.get(
@@ -85,22 +68,15 @@ async def get_tasks(
     Admin может видеть задачи любого пользователя
     Обычный пользователь видит только свои заачи
     """
-    try:
-        tasks = await service.get_tasks(
-            uow=uow,
-            current_user=current_user,
-            status=status,
-            user_id=user_id,
-            deadline_from=date_filters.start_date,
-            deadline_to=date_filters.end_date,
-        )
-        return tasks
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    tasks = await service.get_tasks(
+        uow=uow,
+        current_user=current_user,
+        status=status,
+        user_id=user_id,
+        deadline_from=date_filters.start_date,
+        deadline_to=date_filters.end_date,
+    )
+    return tasks
 
 
 @router.get(
@@ -135,17 +111,10 @@ async def get_task(
     service: TaskService = Depends(),
 ):
     """Получение информации о задаче"""
-    try:
-        task = await service.get_task(
-            uow=uow, task_id=task_id, current_user=current_user
-        )
-        return task
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except TaskNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    task = await service.get_task(
+        uow=uow, task_id=task_id, current_user=current_user
+    )
+    return task
 
 
 @router.patch(
@@ -165,21 +134,14 @@ async def update_task(
     Обновление задачи.
     Только для admin
     """
-    try:
-        task = await service.update_task(
-            uow=uow,
-            task_id=task_id,
-            current_user=current_user,
-            description=task_data.description,
-            deadline=task_data.deadline,
-        )
-        return task
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except TaskNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    task = await service.update_task(
+        uow=uow,
+        task_id=task_id,
+        current_user=current_user,
+        description=task_data.description,
+        deadline=task_data.deadline,
+    )
+    return task
 
 
 @router.patch(
@@ -199,20 +161,13 @@ async def assign_executor(
     Назначение исполнителя задачи.
     Только для admin
     """
-    try:
-        task = await service.assign_executor(
-            uow=uow,
-            task_id=task_id,
-            executor_id=data.executor_id,
-            current_user=current_user,
-        )
-        return task
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except NotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    task = await service.assign_executor(
+        uow=uow,
+        task_id=task_id,
+        executor_id=data.executor_id,
+        current_user=current_user,
+    )
+    return task
 
 
 @router.patch(
@@ -240,22 +195,13 @@ async def change_status(
     Исполнитель задачи может изменять статус на done или на in_progress
     Admin может установить любой статус
     """
-    try:
-        task = await service.change_status(
-            uow=uow,
-            task_id=task_id,
-            new_status=data.status,
-            current_user=current_user,
-        )
-        return task
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except InvalidTransitionError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except TaskNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    task = await service.change_status(
+        uow=uow,
+        task_id=task_id,
+        new_status=data.status,
+        current_user=current_user,
+    )
+    return task
 
 
 @router.delete(
@@ -274,13 +220,6 @@ async def delete_task(
     Удаление задачи.
     Только для admin
     """
-    try:
-        await service.delete_task(
-            uow=uow, task_id=task_id, current_user=current_user
-        )
-    except ForbiddenError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except TaskNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except TaskNotInTeamError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+    await service.delete_task(
+        uow=uow, task_id=task_id, current_user=current_user
+    )

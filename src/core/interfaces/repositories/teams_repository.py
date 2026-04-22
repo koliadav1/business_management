@@ -20,11 +20,6 @@ class ITeamsRepository(IRepository[Team]):
         pass
 
     @abstractmethod
-    async def get_user_team(self, user_id: int) -> Team | None:
-        """Получить команду пользователя"""
-        pass
-
-    @abstractmethod
     async def add_member(
         self,
         team_id: int,
