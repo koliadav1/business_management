@@ -35,7 +35,10 @@ class EvaluationService:
             )
 
             if task.executor_id == current_user.id:
-                raise ForbiddenError("You can't rate your own tasks")
+                raise ForbiddenError("You can't rate tasks assigned to you")
+
+            if task.author_id != current_user.id:
+                raise ForbiddenError("You can only rate tasks created by you")
 
             if task.status != TaskStatus.DONE:
                 raise TaskNotCompletedError(
