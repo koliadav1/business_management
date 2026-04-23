@@ -42,13 +42,6 @@ class ITasksRepository(IRepository[Task]):
         pass
 
     @abstractmethod
-    async def update_status(
-        self, task_id: int, new_status: TaskStatus
-    ) -> Task | None:
-        """Изменить статус задачи"""
-        pass
-
-    @abstractmethod
     async def get_by_team(
         self,
         team_id: int,

@@ -208,9 +208,8 @@ class MeetingService:
 
             if current_user.role == UserRole.ADMIN:
                 if user_id:
-                    await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
-                    )
+                    user = await uow.users_repo.get(user_id)
+                    CheckTeamLogic.check_user_team(current_user, user)
                     meetings = await uow.meetings_repo.get_user_meetings(
                         user_id, include_cancelled, include_finished
                     )

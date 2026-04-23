@@ -72,17 +72,6 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         result = await self._session.execute(query)
         return result.scalars().all()
 
-    async def update_status(
-        self, task_id: int, new_status: TaskStatus
-    ) -> Task | None:
-        """Изменить статус задачи"""
-        task = await self.get(task_id)
-        if task:
-            task.status = new_status
-            await self._session.flush()
-            await self._session.refresh(task)
-        return task
-
     async def get_by_team(
         self,
         team_id: int,
