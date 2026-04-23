@@ -70,6 +70,10 @@ class TaskNotCompletedError(ConflictError):
     pass
 
 
+class UserNotMemberOfMeetingError(ConflictError):
+    pass
+
+
 class InvalidTransitionError(AppBaseException):
     status_code = 400
 

@@ -8,7 +8,9 @@ from src.core.exceptions import (
     MeetingCancelledError,
     MeetingNotFoundError,
     OverlappingTimeError,
+    UserNotFoundError,
     UserNotInTeamError,
+    UserNotMemberOfMeetingError,
 )
 from src.models.meetings import Meeting
 from src.core.interfaces.unit_of_work import IUnitOfWork
@@ -73,7 +75,7 @@ class MeetingService:
 
                 created_meeting = (
                     await uow.meetings_repo.add_members_to_meeting(
-                        created_meeting.id, member_ids
+                        created_meeting, member_ids
                     )
                 )
             else:
@@ -152,14 +154,7 @@ class MeetingService:
 
             self._check_can_manage_meeting(meeting, current_user)
 
-            if meeting.start_time < datetime.now(timezone.utc):
-                raise MeetingAlreadyOverError(
-                    "Can't cancell meetings that are in progress or finished"
-                )
-
-            cancelled_meeting = await uow.meetings_repo.cancel_meeting(
-                meeting_id
-            )
+            cancelled_meeting = await uow.meetings_repo.cancel_meeting(meeting)
 
         return cancelled_meeting
 
@@ -294,12 +289,6 @@ class MeetingService:
 
             self._check_can_manage_meeting(meeting, current_user)
 
-            if meeting.start_time < datetime.now(timezone.utc):
-                raise MeetingAlreadyOverError(
-                    "Can't add members to meetings that "
-                    "are in progress or finished"
-                )
-
             existing_ids = {member.id for member in meeting.members}
             new_member_ids = list(set(member_ids) - existing_ids)
 
@@ -327,7 +316,7 @@ class MeetingService:
                 )
 
             updated_meeting = await uow.meetings_repo.add_members_to_meeting(
-                meeting.id, new_member_ids
+                meeting, new_member_ids
             )
 
         return updated_meeting
@@ -355,18 +344,19 @@ class MeetingService:
 
             self._check_can_manage_meeting(meeting, current_user)
 
-            if meeting.start_time < datetime.now(timezone.utc):
-                raise MeetingAlreadyOverError(
-                    "Can't remove members from meetings that "
-                    "are in progress or finished"
-                )
-
             if member_id == meeting.initiator_id:
                 raise ForbiddenError("Can't remove initiator of meeting")
 
-            await uow.meetings_repo.remove_member_from_meeting(
-                meeting_id, member_id
-            )
+            member = await uow.users_repo.get(member_id)
+            if not member:
+                raise UserNotFoundError(f"User {member_id} not found")
+
+            if member not in meeting.members:
+                raise UserNotMemberOfMeetingError(
+                    f"User {member_id} not in this meeting"
+                )
+
+            await uow.meetings_repo.remove_member_from_meeting(meeting, member)
 
     def _check_can_manage_meeting(
         self, meeting: Meeting, current_user: User
@@ -386,3 +376,8 @@ class MeetingService:
 
         if not meeting.is_active:
             raise MeetingCancelledError("You can't manage cancelled meetings")
+
+        if meeting.start_time < datetime.now(timezone.utc):
+            raise MeetingAlreadyOverError(
+                "Can't manage meetings that are in progress or finished"
+            )

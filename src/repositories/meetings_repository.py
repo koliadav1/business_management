@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List
 
-from sqlalchemy import func, not_, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import selectinload
 
 from src.models.users import User
@@ -89,35 +89,26 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
 
         query = (
             select(User.id)
-            .join(User.meetings)
+            .where(User.id.in_(user_ids))
             .where(
-                User.id.in_(user_ids),
-                Meeting.is_active,
-                Meeting.start_time < end_time,
-                Meeting.start_time
-                + (Meeting.duration_m * func.text("interval '1 minute'"))
-                > start_time,
+                User.meetings.any(
+                    Meeting.is_active,
+                    Meeting.start_time < end_time,
+                    Meeting.start_time
+                    + (Meeting.duration_m * func.text("interval '1 minute'"))
+                    > start_time,
+                    Meeting.id != exclude_meeting_id,
+                )
             )
-            .distinct()
         )
 
-        if exclude_meeting_id:
-            query = query.where(Meeting.id != exclude_meeting_id)
-
         result = await self._session.execute(query)
-        return [row[0] for row in result.all()]
+        return [row for row in result.scalars()]
 
-    async def cancel_meeting(self, meeting_id: int) -> Meeting | None:
+    async def cancel_meeting(self, meeting: Meeting) -> Meeting | None:
         """Отменить задачу"""
-        meeting = await self.get(meeting_id)
-
-        if not meeting:
-            return None
-
         meeting.is_active = False
-
         await self._session.flush()
-        await self._session.refresh(meeting)
 
         return meeting
 
@@ -152,39 +143,25 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
         return result.scalars().all()
 
     async def remove_member_from_meeting(
-        self, meeting_id: int, member_id: int
-    ) -> bool:
+        self, meeting: Meeting, member: User
+    ) -> Meeting:
         """Удалить участника из встречи"""
-        meeting = await self.get_meeting_with_members(meeting_id)
-        if not meeting:
-            return False
-
-        init_count = len(meeting.members)
-        meeting.members = [m for m in meeting.members if m.id != member_id]
-
-        if len(meeting.members) < init_count:
-            await self._session.flush()
-            return True
-        return False
+        meeting.members.remove(member)
+        await self._session.flush()
+        return meeting
 
     async def add_members_to_meeting(
-        self, meeting_id: int, user_ids: List[int]
+        self, meeting: Meeting, user_ids: List[int]
     ) -> Meeting:
         """Добавить участников к встрече"""
-        meeting = await self.get_meeting_with_members(meeting_id)
-        if not meeting:
-            return []
-
-        existing_ids = {m.id for m in meeting.members}
         result = await self._session.execute(
-            select(User).where(
-                User.id.in_(user_ids), not_(User.id.in_(existing_ids))
-            )
+            select(User).where(User.id.in_(user_ids))
         )
         new_members = result.scalars().all()
 
         for user in new_members:
-            meeting.members.append(user)
+            if user not in meeting.members:
+                meeting.members.append(user)
 
         await self._session.flush()
         return meeting
@@ -192,8 +169,11 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
     async def is_member(self, meeting_id: int, user_id: int) -> bool:
         """Является ли пользователь участником встречи"""
         result = await self._session.execute(
-            select(Meeting)
-            .join(Meeting.members)
-            .where(Meeting.id == meeting_id, User.id == user_id)
+            select(
+                exists().where(
+                    Meeting.id == meeting_id,
+                    Meeting.members.any(User.id == user_id),
+                )
+            )
         )
-        return result.scalar_one_or_none() is not None
+        return result.scalar() or False

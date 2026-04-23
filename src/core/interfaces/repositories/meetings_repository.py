@@ -52,7 +52,7 @@ class IMeetingsRepository(IRepository[Meeting]):
         pass
 
     @abstractmethod
-    async def cancel_meeting(self, meeting_id: int) -> Meeting | None:
+    async def cancel_meeting(self, meeting: Meeting) -> Meeting | None:
         """Отменить задачу"""
         pass
 
@@ -70,14 +70,14 @@ class IMeetingsRepository(IRepository[Meeting]):
 
     @abstractmethod
     async def remove_member_from_meeting(
-        self, meeting_id: int, member_id: int
-    ) -> bool:
+        self, meeting: Meeting, member: User
+    ) -> Meeting:
         """Удалить участника из встречи"""
         pass
 
     @abstractmethod
     async def add_members_to_meeting(
-        self, meeting_id: int, user_ids: List[int]
+        self, meeting: Meeting, user_ids: List[int]
     ) -> Meeting:
         """Добавить участников к встрече"""
         pass
