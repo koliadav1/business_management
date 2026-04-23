@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.interfaces.repositories import (
     ITeamsRepository,
@@ -10,6 +11,7 @@ from src.core.interfaces.repositories import (
 
 
 class IUnitOfWork(ABC):
+    session: AsyncSession
     tasks_repo: ITasksRepository
     users_repo: IUsersRepository
     teams_repo: ITeamsRepository

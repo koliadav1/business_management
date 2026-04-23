@@ -22,23 +22,16 @@ class ITeamsRepository(IRepository[Team]):
     @abstractmethod
     async def add_member(
         self,
-        team_id: int,
-        user_id: int,
+        team: Team,
+        user: User,
         user_role: UserRole = UserRole.EMPLOYEE,
-    ) -> bool:
+    ) -> None:
         """Добавить пользователя в команду"""
         pass
 
     @abstractmethod
-    async def remove_member(self, team_id: int, user_id: int) -> bool:
+    async def remove_member(self, user: User) -> None:
         """Убрать пользователя из команды"""
-        pass
-
-    @abstractmethod
-    async def update_member_role(
-        self, team_id: int, user_id: int, new_role: UserRole
-    ) -> bool:
-        """Изменить роль члена команды"""
         pass
 
     @abstractmethod

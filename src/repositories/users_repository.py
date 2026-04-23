@@ -2,7 +2,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.interfaces.repositories.users_repository import IUsersRepository
-from src.models.users import User
+from src.models.users import User, UserRole
 
 
 class UsersRepository(IUsersRepository):
@@ -18,3 +18,8 @@ class UsersRepository(IUsersRepository):
         query = select(exists().where(User.id == user_id))
         result = await self._session.execute(query)
         return result.scalar()
+
+    async def update_user_role(self, user: User, new_role: UserRole) -> None:
+        """Изменить роль пользователя"""
+        user.role = new_role
+        await self._session.flush()

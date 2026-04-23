@@ -17,22 +17,19 @@ class CheckTeamLogic:
     """
 
     @staticmethod
-    async def check_user_team(
-        uow: IUnitOfWork, user_id1: User, user_id2: int
-    ) -> int:
-        if user_id1.team_id is None:
-            raise ForbiddenError(f"User {user_id1} is not in a team")
+    def check_user_team(user1: User, user2: User) -> int:
+        if user1.team_id is None:
+            raise ForbiddenError(f"User {user1} is not in a team")
 
-        executor = await uow.users_repo.get(user_id2)
-        if not executor:
-            raise UserNotFoundError(f"User with id {user_id2} not found")
+        if not user2:
+            raise UserNotFoundError(f"User with id {user2} not found")
 
-        if user_id1.team_id != executor.team_id:
+        if user1.team_id != user2.team_id:
             raise UserNotInTeamError(
-                f"User {user_id2} is not in the same team as {user_id1}"
+                f"User {user2.id} is not in the same team as {user1.id}"
             )
 
-        return user_id1.team_id
+        return user1.team_id
 
     @staticmethod
     async def check_task_team(

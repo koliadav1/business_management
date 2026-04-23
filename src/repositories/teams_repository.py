@@ -45,15 +45,8 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
     async def remove_member(self, user: User) -> None:
         """Убрать пользователя из команды"""
         user.team_id = None
+        user.role = UserRole.USER
 
-        if user.role != UserRole.ADMIN:
-            user.role = UserRole.USER
-
-        await self._session.flush()
-
-    async def update_member_role(self, user: User, new_role: UserRole) -> None:
-        """Изменить роль члена команды"""
-        user.role = new_role
         await self._session.flush()
 
     async def is_members(

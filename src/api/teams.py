@@ -89,13 +89,12 @@ async def get_team(
 
 
 @router.get(
-    "/{team_id}/members",
+    "/members",
     response_model=List[UserRead],
     summary="Получить состав команды",
     description="Доступ для членов команды",
 )
 async def get_team_members(
-    team_id: int = Path(gt=0, description="ID команды"),
     role: UserRole | None = Query(None, description="Фильтр по роли"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
@@ -106,13 +105,13 @@ async def get_team_members(
     Только для участников команды
     """
     members = await service.get_team_members(
-        uow=uow, team_id=team_id, current_user=current_user, role=role
+        uow=uow, current_user=current_user, role=role
     )
     return members
 
 
 @router.post(
-    "/{team_id}/members",
+    "/members",
     response_model=UserRead,
     status_code=201,
     summary="Добавить пользователя в команду",
@@ -120,7 +119,6 @@ async def get_team_members(
 )
 async def add_member(
     request: AddMember,
-    team_id: int = Path(gt=0, description="ID команды"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: TeamService = Depends(),
@@ -131,7 +129,6 @@ async def add_member(
     """
     user = await service.add_member(
         uow=uow,
-        team_id=team_id,
         user_id=request.user_id,
         current_user=current_user,
         role=request.role,
@@ -163,14 +160,13 @@ async def remove_member(
 
 
 @router.patch(
-    "/{team_id}/members/{user_id}/role",
+    "/members/{user_id}/role",
     response_model=UserRead,
     summary="Изменить роль участника",
     description="Только для администратора и менеджера команды",
 )
 async def update_member_role(
     request: UpdateRole,
-    team_id: int = Path(gt=0, description="ID команды"),
     user_id: int = Path(gt=0, description="ID пользователя"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
@@ -182,7 +178,6 @@ async def update_member_role(
     """
     user = await service.update_member_role(
         uow=uow,
-        team_id=team_id,
         user_id=user_id,
         new_role=request.role,
         current_user=current_user,
@@ -191,13 +186,12 @@ async def update_member_role(
 
 
 @router.delete(
-    "/{team_id}",
+    "/",
     status_code=204,
     summary="Удалить команду",
     description="Только для администратора",
 )
 async def delete_team(
-    team_id: int = Path(gt=0, description="ID команды"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: TeamService = Depends(),
@@ -206,6 +200,22 @@ async def delete_team(
     Удаление команды.
     Только для admin команды
     """
-    await service.delete_team(
-        uow=uow, team_id=team_id, current_user=current_user
+    await service.delete_team(uow=uow, current_user=current_user)
+
+
+@router.delete(
+    "/members/me",
+    status_code=204,
+    summary="Удалить себя из команды",
+    description="Уйти из команды",
+)
+async def remove_self(
+    current_user: User = Depends(get_current_user),
+    uow: IUnitOfWork = Depends(get_uow),
+    service: TeamService = Depends(),
+):
+    """Удаление себя из команды"""
+    await service.quit_team(
+        uow=uow,
+        current_user=current_user,
     )

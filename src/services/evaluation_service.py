@@ -35,7 +35,10 @@ class EvaluationService:
             )
 
             if task.executor_id == current_user.id:
-                raise ForbiddenError("You can't rate your own tasks")
+                raise ForbiddenError("You can't rate tasks assigned to you")
+
+            if task.author_id != current_user.id:
+                raise ForbiddenError("You can only rate tasks created by you")
 
             if task.status != TaskStatus.DONE:
                 raise TaskNotCompletedError(
@@ -77,8 +80,9 @@ class EvaluationService:
                     raise ForbiddenError("You are not in the team")
 
                 if user_id:
-                    team_id = await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
+                    user = await uow.users_repo.get(user_id)
+                    team_id = CheckTeamLogic.check_user_team(
+                        current_user, user
                     )
                     evaluations = (
                         await uow.evaluations_repo.get_user_evaluations(
@@ -114,8 +118,9 @@ class EvaluationService:
 
             if user_id:
                 if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
-                    team_id = await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
+                    user = await uow.users_repo.get(user_id)
+                    team_id = CheckTeamLogic.check_user_team(
+                        current_user, user
                     )
                     evaluations = (
                         await uow.evaluations_repo.get_evaluations_with_tasks(
@@ -149,8 +154,9 @@ class EvaluationService:
         async with uow:
             if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
                 if user_id:
-                    team_id = await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
+                    user = await uow.users_repo.get(user_id)
+                    team_id = CheckTeamLogic.check_user_team(
+                        current_user, user
                     )
                     stats = await uow.evaluations_repo.get_statistics(
                         user_id, team_id, start_date, end_date
