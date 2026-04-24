@@ -77,4 +77,11 @@ class User(SQLAlchemyBaseUserTable[int], Base):
 
     @property
     def full_name(self):
-        return self.name + " " + self.surname
+        if self.name and self.surname:
+            return self.name + " " + self.surname
+        elif self.name:
+            return self.name
+        elif self.surname:
+            return self.surname
+        else:
+            return None
