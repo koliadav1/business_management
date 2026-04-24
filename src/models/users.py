@@ -33,6 +33,11 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     role: Mapped[UserRole] = mapped_column(
         SQLEnum(UserRole), default=UserRole.USER, nullable=False
     )
+    phone_number: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, unique=True
+    )
+    name: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    surname: Mapped[str | None] = mapped_column(String(30), nullable=True)
     team_id: Mapped[int | None] = mapped_column(
         ForeignKey("teams.id", ondelete="SET NULL"), index=True
     )
@@ -69,3 +74,14 @@ class User(SQLAlchemyBaseUserTable[int], Base):
 
     def __str__(self):
         return self.email
+
+    @property
+    def full_name(self):
+        if self.name and self.surname:
+            return self.name + " " + self.surname
+        elif self.name:
+            return self.name
+        elif self.surname:
+            return self.surname
+        else:
+            return None
