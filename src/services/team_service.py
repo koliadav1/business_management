@@ -39,7 +39,7 @@ class TeamService:
             team = Team(name=name, description=description)
             created_team = await uow.teams_repo.add(team)
 
-            user = await uow.session.merge(current_user)
+            user = await uow._session.merge(current_user)
             await uow.teams_repo.add_member(created_team, user, UserRole.ADMIN)
         return created_team
 

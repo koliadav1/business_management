@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     SECRET: str
 
+    ACCESS_LIFETIME_SECONDS: int
+    REFRESH_LIFETIME_SECONDS: int
+
     @property
     def DB_URL(self) -> str:
         return (
