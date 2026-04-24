@@ -47,4 +47,6 @@ class UserCreate(BaseUser, schemas.BaseUserCreate):
 
 
 class UserUpdate(BaseUser, schemas.BaseUserUpdate):
-    pass
+    current_password: str | None = Field(
+        None, description="Текущий пароль, нужен для изменения почты/пароля"
+    )

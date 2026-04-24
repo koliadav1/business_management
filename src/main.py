@@ -12,6 +12,7 @@ from src.api.teams import router as teams_router
 from src.api.evaluations import router as evaluations_router
 from src.api.meetings import router as meetings_router
 from src.api.auth import router as auth_router
+from src.api.users import router as user_router
 from src.admin import setup_admin
 
 http_bearer = HTTPBearer(auto_error=False)
@@ -37,6 +38,7 @@ app.include_router(evaluations_router)
 app.include_router(meetings_router)
 
 app.include_router(auth_router)
+app.include_router(user_router)
 
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
