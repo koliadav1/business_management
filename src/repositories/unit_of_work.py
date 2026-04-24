@@ -15,7 +15,7 @@ class SQLAlchUnitOfWork(IUnitOfWork):
         self._session_factory = session_factory
 
     async def __aenter__(self):
-        self.session = self._session_factory()
+        self._session = self._session_factory()
 
         self.tasks_repo = TasksRepository(self._session)
         self.users_repo = UsersRepository(self._session)
