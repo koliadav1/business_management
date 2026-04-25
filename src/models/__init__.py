@@ -1,5 +1,5 @@
 from src.core.database import Base
-from .tasks import Task
+from .tasks import Task, Comment
 from .users import User
 from .teams import Team
 from .evaluations import Evaluation
@@ -13,4 +13,5 @@ __all__ = [
     "Evaluation",
     "Meeting",
     "MeetingMember",
+    "Comment",
 ]
