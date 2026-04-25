@@ -1,3 +1,5 @@
+from typing import List
+
 from src.core.exceptions import (
     CommentNotFoundError,
     ForbiddenError,
@@ -11,7 +13,7 @@ from src.models.tasks import Comment
 class CommentService:
     async def add_comment(
         self, task_id: int, content: str, current_user: User, uow: IUnitOfWork
-    ):
+    ) -> Comment:
         """
         Добавить комменатрий к задаче.
         Только для admin, manager и исполнителя задачи
@@ -38,7 +40,7 @@ class CommentService:
 
     async def get_task_comments(
         self, task_id: int, current_user: User, uow: IUnitOfWork
-    ):
+    ) -> List[Comment]:
         """
         Получить комментарии к задаче.
         Только для admin, manager и исполнителя задачи
@@ -65,7 +67,7 @@ class CommentService:
         content: str,
         current_user: User,
         uow: IUnitOfWork,
-    ):
+    ) -> Comment:
         """
         Изменить комментарий.
         Только для автора комменатрия и admin
@@ -90,7 +92,7 @@ class CommentService:
 
     async def delete_comment(
         self, comment_id: int, current_user: User, uow: IUnitOfWork
-    ):
+    ) -> None:
         """
         Удалить комментарий.
         Только для автора комментария и admin
