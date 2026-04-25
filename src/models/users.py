@@ -10,7 +10,7 @@ from src.core.database import Base
 
 if TYPE_CHECKING:
     from src.models.evaluations import Evaluation
-    from src.models.tasks import Task
+    from src.models.tasks import Task, Comment
     from src.models.teams import Team
     from src.models.meetings import Meeting
 
@@ -70,6 +70,9 @@ class User(SQLAlchemyBaseUserTable[int], Base):
         secondary="meeting_members",
         primaryjoin="User.id == MeetingMember.member_id",
         secondaryjoin="Meeting.id == MeetingMember.meeting_id",
+    )
+    comments: Mapped[List["Comment"]] = relationship(
+        back_populates="author", foreign_keys="Comment.author_id"
     )
 
     def __str__(self):
