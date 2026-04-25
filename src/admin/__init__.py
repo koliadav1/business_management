@@ -9,6 +9,7 @@ from .users import UserAdmin
 from .evaluations import EvaluationAdmin
 from .meetings import MeetingAdmin
 from .auth import SQLAdminAuth
+from .comments import CommentAdmin
 
 
 def setup_admin(app: FastAPI):
@@ -25,3 +26,4 @@ def setup_admin(app: FastAPI):
     admin.add_view(TeamAdmin)
     admin.add_view(EvaluationAdmin)
     admin.add_view(MeetingAdmin)
+    admin.add_view(CommentAdmin)
