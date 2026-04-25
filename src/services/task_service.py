@@ -85,7 +85,10 @@ class TaskService:
                 uow, current_user, task_id
             )
 
-            self._can_manage_task(task, current_user)
+            if not self._can_manage_task(task, current_user):
+                raise ForbiddenError(
+                    "Only admins and task authors can manage task"
+                )
 
             task.executor_id = executor_id
             updated_task = await uow.tasks_repo.update(task)
@@ -114,7 +117,10 @@ class TaskService:
                 uow, current_user, task_id
             )
 
-            self._can_manage_task(task, current_user)
+            if not self._can_manage_task(task, current_user):
+                raise ForbiddenError(
+                    "Only admins and task authors can manage task"
+                )
 
             if description:
                 task.description = description
@@ -145,7 +151,10 @@ class TaskService:
             task = await CheckTeamLogic.check_task_team(
                 uow, current_user, task_id
             )
-            self._can_manage_task(task, current_user)
+            if not self._can_manage_task(task, current_user):
+                raise ForbiddenError(
+                    "Only admins and task authors can manage task"
+                )
 
             await uow.tasks_repo.delete(task_id)
 
@@ -331,7 +340,8 @@ class TaskService:
         self, task: Task, new_status: TaskStatus, user: User
     ) -> bool:
         """Проверка прав на изменение статуса"""
-        self._can_manage_task(task, user)
+        if self._can_manage_task(task, user):
+            return True
 
         if user.id == task.executor_id:
             return new_status in [TaskStatus.IN_PROGRESS, TaskStatus.DONE]
@@ -341,8 +351,9 @@ class TaskService:
     def _can_manage_task(self, task: Task, user: User) -> None:
         """Проверка прав на управление задачей"""
         if user.role == UserRole.ADMIN or user.id == task.author_id:
-            return
-        raise ForbiddenError("Only admins and task authors can manage task")
+            return True
+        else:
+            return False
 
     def _is_valid_transition(
         self, current: TaskStatus, new: TaskStatus

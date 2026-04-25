@@ -38,6 +38,10 @@ class MeetingNotFoundError(NotFoundError):
     pass
 
 
+class CommentNotFoundError(NotFoundError):
+    pass
+
+
 class ConflictError(AppBaseException):
     status_code = 409
 
