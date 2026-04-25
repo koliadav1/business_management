@@ -2,10 +2,11 @@ from datetime import datetime
 from typing import List
 
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from .base_repository import SQLRepository
 from src.core.interfaces.repositories.tasks_repository import ITasksRepository
-from src.models.tasks import TaskStatus, Task
+from src.models.tasks import Comment, TaskStatus, Task
 
 
 class TasksRepository(SQLRepository[Task], ITasksRepository):
@@ -90,3 +91,12 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
 
         result = await self._session.execute(query)
         return result.scalars().all()
+
+    async def get_task_with_comments(self, task_id: int) -> Task:
+        """Получить задачу вместе с комментариями к ней"""
+        result = await self._session.execute(
+            select(Task)
+            .where(Task.id == task_id)
+            .options(joinedload(Task.comments).joinedload(Comment.author))
+        )
+        return result.scalar_one_or_none()

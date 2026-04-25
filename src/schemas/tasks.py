@@ -1,7 +1,10 @@
+from typing import List
+
 from pydantic import ConfigDict, BaseModel, Field
 
 from src.models.tasks import TaskStatus
 from .dependencies import UtcDateTime, FutureUtcDateTime
+from .comments import BaseCommentRead
 
 
 class TaskCreate(BaseModel):
@@ -40,3 +43,7 @@ class TaskRead(BaseModel):
     updated_at: UtcDateTime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TaskWithCommentsRead(TaskRead):
+    comments: List[BaseCommentRead]

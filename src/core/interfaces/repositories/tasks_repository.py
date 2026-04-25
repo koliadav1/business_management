@@ -51,3 +51,8 @@ class ITasksRepository(IRepository[Task]):
     ) -> List[Task]:
         """Получить все задачи команды"""
         pass
+
+    @abstractmethod
+    async def get_task_with_comments(self, task_id: int) -> Task:
+        """Получить задачу вместе с комментариями к ней"""
+        pass

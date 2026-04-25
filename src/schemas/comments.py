@@ -17,12 +17,15 @@ class CommentUpdate(BaseComment):
     pass
 
 
-class CommentRead(BaseModel):
+class BaseCommentRead(BaseModel):
     id: int
     content: str
-    task_id: int
     author_id: int
     created_at: UtcDateTime
     updated_at: UtcDateTime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CommentRead(BaseCommentRead):
+    task_id: int

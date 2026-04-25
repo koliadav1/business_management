@@ -81,9 +81,8 @@ class TaskService:
                     "Managers can't assign other managers to tasks"
                 )
 
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task_id)
 
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
@@ -113,9 +112,8 @@ class TaskService:
                     "Only admins and managers can update tasks"
                 )
 
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task_id)
 
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
@@ -148,9 +146,8 @@ class TaskService:
                     "Only admins and managers can update tasks"
                 )
 
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task_id)
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
                     "Only admins and task authors can manage task"
@@ -171,9 +168,8 @@ class TaskService:
         Executor - только статусы DONE и IN_PROGRESS
         """
         async with uow:
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task_id)
             if not self._can_change_status(task, new_status, current_user):
                 raise ForbiddenError(
                     f"User {current_user.role.value} can't change status from "
@@ -204,21 +200,22 @@ class TaskService:
         task_id: int,
         current_user: User,
         uow: IUnitOfWork,
-    ) -> Task:
+    ) -> Task | None:
         """
         Получить задачу по ID.
         Только для admin, manager и исполнителя задачи
         """
         async with uow:
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get_task_with_comments(task_id)
+            CheckTeamLogic.check_task_team(current_user, task_id)
 
             if current_user.id == task.executor_id or current_user.role in [
                 UserRole.ADMIN,
                 UserRole.MANAGER,
             ]:
                 return task
+            else:
+                ForbiddenError("You cant view this task")
 
     async def get_user_tasks(
         self,

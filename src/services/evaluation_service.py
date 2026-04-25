@@ -30,9 +30,8 @@ class EvaluationService:
             if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                 raise ForbiddenError("Only admins and managers can rate tasks")
 
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if task.executor_id == current_user.id:
                 raise ForbiddenError("You can't rate tasks assigned to you")
@@ -195,7 +194,8 @@ class EvaluationService:
                     "Only admins and managers can delete evaluations"
                 )
 
-            await CheckTeamLogic.check_task_team(uow, current_user, task_id)
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             evaluation = await uow.evaluations_repo.get_by_task(task_id)
             if not evaluation:
