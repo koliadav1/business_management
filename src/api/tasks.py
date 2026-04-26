@@ -1,7 +1,6 @@
-from typing import List
 from fastapi import APIRouter, Depends, Path, Query
 
-from src.schemas.base import DateFilter
+from src.schemas.base import DateFilter, PaginatedRead
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.tasks import TaskStatus
 from src.services.task_service import TaskService
@@ -48,11 +47,13 @@ async def create_task(
 
 @router.get(
     "/",
-    response_model=List[TaskRead],
+    response_model=PaginatedRead[TaskRead],
     summary="Получить список задач",
     description="Возвращает задачи в зависимости от роли",
 )
 async def get_user_tasks(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user_id: int | None = Query(
         None, description="ID пользователя (только для admin)"
     ),
@@ -69,24 +70,33 @@ async def get_user_tasks(
     Admin и manager могут видеть задачи любого пользователя
     Обычный пользователь видит только свои заачи
     """
-    tasks = await service.get_user_tasks(
+    result = await service.get_user_tasks(
         uow=uow,
         current_user=current_user,
+        page=page,
+        limit=limit,
         status=status,
         user_id=user_id,
         deadline_from=date_filters.start_date,
         deadline_to=date_filters.end_date,
     )
-    return tasks
+    return PaginatedRead(
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.get(
     "/team",
-    response_model=List[TaskRead],
+    response_model=PaginatedRead[TaskRead],
     summary="Получить список задач команды",
     description="Только для администраторов и менеджеров команды",
 )
 async def get_team_tasks(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     status: TaskStatus | None = Query(
         None, description="Фильтр по статусу задачи"
     ),
@@ -99,23 +109,32 @@ async def get_team_tasks(
     Получение списка задач команды.
     Только для admin и manager
     """
-    tasks = await service.get_team_tasks(
+    result = await service.get_team_tasks(
         uow=uow,
         current_user=current_user,
+        page=page,
+        limit=limit,
         status=status,
         deadline_from=date_filters.start_date,
         deadline_to=date_filters.end_date,
     )
-    return tasks
+    return PaginatedRead(
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.get(
     "/overdue",
-    response_model=List[TaskRead],
+    response_model=PaginatedRead[TaskRead],
     summary="Получить просроченные задачи",
     description="Возвращает просроченные задачи в зависимости от роли",
 )
 async def get_user_overdue_tasks(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user_id: int | None = Query(
         None, description="ID пользователя (только для admin)"
     ),
@@ -128,19 +147,30 @@ async def get_user_overdue_tasks(
     Admin и manager могут видеть задачи любого пользователя
     Обычный пользователь получает свои просроченные задачи
     """
-    tasks = await service.get_user_overdue_tasks(
-        current_user=current_user, uow=uow, user_id=user_id
+    result = await service.get_user_overdue_tasks(
+        current_user=current_user,
+        uow=uow,
+        page=page,
+        limit=limit,
+        user_id=user_id,
     )
-    return tasks
+    return PaginatedRead(
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.get(
     "/team/overdue",
-    response_model=List[TaskRead],
+    response_model=PaginatedRead[TaskRead],
     summary="Получить просроченные задачи команды",
     description="Только для администраторов и менеджеров команды",
 )
 async def get_team_overdue_tasks(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: TaskService = Depends(),
@@ -149,10 +179,15 @@ async def get_team_overdue_tasks(
     Получение списка просроченных задач команды.
     Только для admin и manager
     """
-    tasks = await service.get_team_overdue_tasks(
-        current_user=current_user, uow=uow
+    result = await service.get_team_overdue_tasks(
+        current_user=current_user, uow=uow, page=page, limit=limit
     )
-    return tasks
+    return PaginatedRead(
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.get(

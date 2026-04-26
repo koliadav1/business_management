@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from .base_repository import SQLRepository
@@ -17,10 +17,12 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         self,
         executor_id: int,
         team_id: int,
+        skip: int,
+        limit: int,
         status: TaskStatus | None = None,
         deadline_from: datetime | None = None,
         deadline_to: datetime | None = None,
-    ) -> List[Task]:
+    ) -> tuple[List[Task], int]:
         """Получить все задачи для конкретного исполнителя"""
         query = select(Task).where(
             Task.executor_id == executor_id, Task.team_id == team_id
@@ -33,26 +35,21 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         if deadline_to:
             query = query.where(Task.deadline <= deadline_to)
 
-        result = await self._session.execute(query)
-        return result.scalars().all()
+        paginated_query = query.offset(skip).limit(limit)
 
-    async def get_by_author(self, author_id: int) -> List[Task]:
-        """Получить все задачи по их создателю"""
-        result = await self._session.execute(
-            select(Task).where(Task.author_id == author_id)
-        )
-        return result.scalars().all()
+        result = await self._session.execute(paginated_query)
+        tasks = result.scalars().all()
 
-    async def get_by_status(self, status: TaskStatus) -> List[Task]:
-        """Получить все задачи по их статусу"""
-        result = await self._session.execute(
-            select(Task).where(Task.status == status)
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
         )
-        return result.scalars().all()
+        total = count_query.scalar_one_or_none()
+
+        return tasks, total or 0
 
     async def get_overdue_for_user(
-        self, user_id: int, team_id: int
-    ) -> List[Task]:
+        self, user_id: int, team_id: int, skip: int, limit: int
+    ) -> tuple[List[Task], int]:
         """Получить просроченные задачи конкретного пользователя"""
         query = select(Task).where(
             Task.executor_id == user_id,
@@ -60,26 +57,49 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
             Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
             Task.team_id == team_id,
         )
-        result = await self._session.execute(query)
-        return result.scalars().all()
 
-    async def get_overdue_for_team(self, team_id: int) -> List[Task]:
+        paginated_query = query.offset(skip).limit(limit)
+
+        result = await self._session.execute(paginated_query)
+        tasks = result.scalars().all()
+
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return tasks, total or 0
+
+    async def get_overdue_for_team(
+        self, team_id: int, skip: int, limit: int
+    ) -> tuple[List[Task], int]:
         """Получить все просроченные задачи"""
         query = select(Task).where(
             Task.deadline < datetime.now(),
             Task.status.not_in([TaskStatus.DONE, TaskStatus.CANCELLED]),
             Task.team_id == team_id,
         )
-        result = await self._session.execute(query)
-        return result.scalars().all()
+        paginated_query = query.offset(skip).limit(limit)
+
+        result = await self._session.execute(paginated_query)
+        tasks = result.scalars().all()
+
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return tasks, total or 0
 
     async def get_by_team(
         self,
         team_id: int,
+        skip: int,
+        limit: int,
         status: TaskStatus | None = None,
         deadline_from: datetime | None = None,
         deadline_to: datetime | None = None,
-    ) -> List[Task]:
+    ) -> tuple[List[Task], int]:
         query = select(Task).where(Task.team_id == team_id)
 
         if status:
@@ -89,8 +109,17 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
         if deadline_to:
             query = query.where(Task.deadline <= deadline_to)
 
-        result = await self._session.execute(query)
-        return result.scalars().all()
+        paginated_query = query.offset(skip).limit(limit)
+
+        result = await self._session.execute(paginated_query)
+        tasks = result.scalars().all()
+
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return tasks, total or 0
 
     async def get_task_with_comments(self, task_id: int) -> Task:
         """Получить задачу вместе с комментариями к ней"""

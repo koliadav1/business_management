@@ -12,32 +12,33 @@ class ITasksRepository(IRepository[Task]):
         self,
         executor_id: int,
         team_id: int,
+        skip: int,
+        limit: int,
         status: TaskStatus | None = None,
         deadline_from: datetime | None = None,
         deadline_to: datetime | None = None,
-    ) -> List[Task]:
+    ) -> tuple[List[Task], int]:
         """Получить все задачи для конкретного исполнителя"""
         pass
 
     @abstractmethod
-    async def get_by_author(self, author_id: int) -> List[Task]:
-        """Получить все задачи по их создателю"""
-        pass
-
-    @abstractmethod
-    async def get_by_status(self, status: TaskStatus) -> List[Task]:
-        """Получить все задачи по их статусу"""
-        pass
-
-    @abstractmethod
     async def get_overdue_for_user(
-        self, user_id: int, team_id: int
-    ) -> List[Task]:
+        self,
+        user_id: int,
+        team_id: int,
+        skip: int,
+        limit: int,
+    ) -> tuple[List[Task], int]:
         """Получить просроченные задачи конкретного пользователя"""
         pass
 
     @abstractmethod
-    async def get_overdue_for_team(self, team_id: int) -> List[Task]:
+    async def get_overdue_for_team(
+        self,
+        team_id: int,
+        skip: int,
+        limit: int,
+    ) -> tuple[List[Task], int]:
         """Получить все просроченные задачи"""
         pass
 
@@ -45,10 +46,12 @@ class ITasksRepository(IRepository[Task]):
     async def get_by_team(
         self,
         team_id: int,
+        skip: int,
+        limit: int,
         status: TaskStatus | None = None,
         deadline_from: datetime | None = None,
         deadline_to: datetime | None = None,
-    ) -> List[Task]:
+    ) -> tuple[List[Task], int]:
         """Получить все задачи команды"""
         pass
 
