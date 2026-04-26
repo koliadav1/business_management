@@ -7,6 +7,7 @@ from src.core.interfaces.repositories import (
     ITasksRepository,
     IMeetingsRepository,
     IEvaluationsRepository,
+    ICommentsRepository,
 )
 
 
@@ -17,6 +18,7 @@ class IUnitOfWork(ABC):
     teams_repo: ITeamsRepository
     evaluations_repo: IEvaluationsRepository
     meetings_repo: IMeetingsRepository
+    comments_repo: ICommentsRepository
 
     @abstractmethod
     async def __aenter__(self):

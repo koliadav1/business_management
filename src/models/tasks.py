@@ -3,7 +3,7 @@ from sqlalchemy import ForeignKey, String, DateTime, func
 from sqlalchemy import Enum as SQLEnum
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from src.core.database import Base
 
@@ -62,6 +62,43 @@ class Task(Base):
     evaluation: Mapped["Evaluation"] = relationship(
         back_populates="task", foreign_keys="Evaluation.task_id"
     )
+    comments: Mapped[List["Comment"]] = relationship(
+        back_populates="task",
+        foreign_keys="Comment.task_id",
+        cascade="all, delete-orphan",
+    )
 
     def __str__(self):
         return self.description
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    content: Mapped[str] = mapped_column(String(1024), nullable=False)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        server_onupdate=func.now(),
+    )
+
+    task: Mapped["Task"] = relationship(
+        back_populates="comments", foreign_keys=[task_id]
+    )
+    author: Mapped["User"] = relationship(
+        back_populates="comments", foreign_keys=[author_id]
+    )
+
+    def __str__(self):
+        return self.content

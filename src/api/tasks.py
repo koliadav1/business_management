@@ -12,6 +12,7 @@ from src.schemas.tasks import (
     TaskCreate,
     TaskRead,
     TaskUpdate,
+    TaskWithCommentsRead,
 )
 from src.utils.dependencies import get_current_user, get_uow
 
@@ -156,7 +157,8 @@ async def get_team_overdue_tasks(
 
 @router.get(
     "/{task_id}",
-    summary="Получить задачу по ID",
+    response_model=TaskWithCommentsRead,
+    summary="Получить задачу по ID с комментариями",
     description="Доступ для admin, manager и исполнителя задачи",
 )
 async def get_task(
@@ -165,7 +167,10 @@ async def get_task(
     uow: IUnitOfWork = Depends(get_uow),
     service: TaskService = Depends(),
 ):
-    """Получение информации о задаче"""
+    """
+    Получение информации о задаче
+    Только для admin, manager и исполнителя задачи
+    """
     task = await service.get_task(
         uow=uow, task_id=task_id, current_user=current_user
     )
