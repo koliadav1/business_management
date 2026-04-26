@@ -1,0 +1,35 @@
+# Python/Virtual Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# IDEs/Editors
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Environment variables (Crucial for security)
+.env
+.env.local
+.env.prod
+.env.dev
+
+# Test reports/cache
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Documentation
+docs/
+*.md
+
+# Docker
+Dockerfile
+docker-compose.yml

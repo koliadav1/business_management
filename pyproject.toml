@@ -11,6 +11,7 @@ dependencies = [
     "SQLAlchemy==2.0.48",
     "uvicorn==0.42.0",
     "fastapi-users==15.0.5",
+    "fastapi-users-db-sqlalchemy==7.0.0",
     "passlib==1.7.4",
     "python-jose==3.5.0",
     "sqladmin==0.24.0",
@@ -29,3 +30,6 @@ build-backend = "hatchling.build"
 [tool.black]
 line-length = 79
 force-exclude = "migrations"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
