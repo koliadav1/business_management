@@ -15,8 +15,8 @@ class IEvaluationsRepository(IRepository[Evaluation]):
 
     @abstractmethod
     async def get_user_evaluations(
-        self, user_id: int, team_id: int
-    ) -> List[Evaluation]:
+        self, user_id: int, skip: int, limit: int, team_id: int | None = None
+    ) -> tuple[List[Evaluation], int]:
         """Получить все оценки пользователя"""
         pass
 
@@ -33,16 +33,14 @@ class IEvaluationsRepository(IRepository[Evaluation]):
 
     @abstractmethod
     async def get_evaluations_with_tasks(
-        self,
-        user_id: int,
-        team_id: int,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-    ) -> List[tuple[Evaluation, Task]]:
+        self, user_id: int, team_id: int, skip: int, limit: int
+    ) -> tuple[List[tuple[Evaluation, Task]], int]:
         """Получить данные об оценках и задачах пользователя"""
         pass
 
     @abstractmethod
-    async def get_by_team(self, team_id: int) -> List[dict]:
-        """Получить оценки и задачи для всей команды"""
+    async def get_by_team(
+        self, team_id: int, skip: int, limit: int
+    ) -> tuple[List[Evaluation], int]:
+        """Получить оценки всей команды"""
         pass

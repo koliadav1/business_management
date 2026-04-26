@@ -65,6 +65,8 @@ class EvaluationService:
         self,
         current_user: User,
         uow: IUnitOfWork,
+        page: int,
+        limit: int,
         user_id: int | None = None,
     ) -> List[Evaluation]:
         """
@@ -74,37 +76,50 @@ class EvaluationService:
         User получает свои оценки вне зависисомти от команды
         """
         async with uow:
+            skip = (page - 1) * limit
             if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
                 if current_user.team_id is None:
                     raise ForbiddenError("You are not in the team")
 
                 if user_id:
-                    user = await uow.users_repo.get(user_id)
-                    team_id = CheckTeamLogic.check_user_team(
-                        current_user, user
-                    )
-                    evaluations = (
+                    evaluations, total = (
                         await uow.evaluations_repo.get_user_evaluations(
-                            user_id, team_id
+                            user_id, skip, limit, current_user.team_id
                         )
                     )
                 else:
-                    evaluations = await uow.evaluations_repo.get_by_team(
-                        current_user.team_id
+                    evaluations, total = (
+                        await uow.evaluations_repo.get_by_team(
+                            current_user.team_id, skip, limit
+                        )
                     )
             elif current_user.role == UserRole.EMPLOYEE:
-                evaluations = await uow.evaluations_repo.get_user_evaluations(
-                    current_user.id, current_user.team_id
+                evaluations, total = (
+                    await uow.evaluations_repo.get_user_evaluations(
+                        current_user.id, skip, limit, current_user.team_id
+                    )
                 )
             else:
-                evaluations = await uow.evaluations_repo.get_user_evaluations(
-                    current_user.id
+                evaluations, total = (
+                    await uow.evaluations_repo.get_user_evaluations(
+                        current_user.id, skip, limit
+                    )
                 )
 
-        return evaluations
+        return {
+            "items": evaluations,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_evaluations_with_tasks(
-        self, uow: IUnitOfWork, current_user: User, user_id: int | None = None
+        self,
+        uow: IUnitOfWork,
+        current_user: User,
+        page: int,
+        limit: int,
+        user_id: int | None = None,
     ) -> List[tuple[Evaluation, Task]]:
         """
         Получить все оценки пользователя вместе с данными о задачах.
@@ -112,29 +127,30 @@ class EvaluationService:
         Employee получает только свои оценки
         """
         async with uow:
+            skip = (page - 1) * limit
             if current_user.team_id is None:
                 raise ForbiddenError("You are not in the team")
 
-            if user_id:
-                if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
-                    user = await uow.users_repo.get(user_id)
-                    team_id = CheckTeamLogic.check_user_team(
-                        current_user, user
+            if user_id and user_id != current_user.id:
+                if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+                    raise ForbiddenError(
+                        "Only admins and managers "
+                        "can view other user's evaluations"
                     )
-                    evaluations = (
-                        await uow.evaluations_repo.get_evaluations_with_tasks(
-                            user_id, team_id
-                        )
-                    )
-                    return evaluations
 
-            evaluations = (
+            target_id = user_id if user_id else current_user.id
+            evaluations, total = (
                 await uow.evaluations_repo.get_evaluations_with_tasks(
-                    current_user.id, current_user.team_id
+                    target_id, current_user.team_id, skip, limit
                 )
             )
 
-        return evaluations
+        return {
+            "items": evaluations,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_rating_stats(
         self,
