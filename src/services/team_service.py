@@ -194,10 +194,19 @@ class TeamService:
             await uow.teams_repo.delete(current_user.team_id)
             await uow.users_repo.update_user_role(current_user, UserRole.USER)
 
-    async def get_all_teams(self, uow: IUnitOfWork) -> List[Team]:
+    async def get_all_teams(
+        self, uow: IUnitOfWork, page: int, limit: int
+    ) -> List[Team]:
         """Получить список всех команд"""
         async with uow:
-            return await uow.teams_repo.get_all()
+            skip = (page - 1) * limit
+            teams, total = await uow.teams_repo.get_all_paginated(skip, limit)
+        return {
+            "items": teams,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def quit_team(self, uow: IUnitOfWork, current_user: User) -> None:
         if current_user.role == UserRole.ADMIN:

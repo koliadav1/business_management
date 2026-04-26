@@ -221,6 +221,8 @@ class TaskService:
         self,
         uow: IUnitOfWork,
         current_user: User,
+        page: int,
+        limit: int,
         status: TaskStatus | None = None,
         user_id: int | None = None,
         deadline_from: datetime | None = None,
@@ -232,38 +234,41 @@ class TaskService:
         Обычный пользователь видит только свои задачи
         """
         async with uow:
+            skip = (page - 1) * limit
             if current_user.team_id is None:
                 raise ForbiddenError("You're not in a team")
-            if user_id:
-                if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
-                    user = await uow.users_repo.get(user_id)
-                    CheckTeamLogic.check_user_team(current_user, user)
-                    tasks = await uow.tasks_repo.get_by_executor(
-                        user_id,
-                        current_user.team_id,
-                        status,
-                        deadline_from,
-                        deadline_to,
-                    )
-                else:
+
+            if user_id and user_id != current_user.id:
+                if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                     raise ForbiddenError(
                         "Only admins and managers can view other user's tasks"
                     )
-            else:
-                tasks = await uow.tasks_repo.get_by_executor(
-                    current_user.id,
-                    current_user.team_id,
-                    status,
-                    deadline_from,
-                    deadline_to,
-                )
 
-        return tasks
+            target_id = user_id if user_id else current_user.id
+
+            tasks, total = await uow.tasks_repo.get_by_executor(
+                target_id,
+                current_user.team_id,
+                skip,
+                limit,
+                status,
+                deadline_from,
+                deadline_to,
+            )
+
+        return {
+            "items": tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_team_tasks(
         self,
         uow: IUnitOfWork,
         current_user: User,
+        page: int,
+        limit: int,
         status: TaskStatus | None = None,
         deadline_from: datetime | None = None,
         deadline_to: datetime | None = None,
@@ -273,19 +278,33 @@ class TaskService:
         Только для admin и manager
         """
         async with uow:
+            skip = (page - 1) * limit
+
             if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                 raise ForbiddenError(
                     "Only admins and managers can view team tasks"
                 )
-            tasks = await uow.tasks_repo.get_by_team(
-                current_user.team_id, status, deadline_from, deadline_to
+            tasks, total = await uow.tasks_repo.get_by_team(
+                current_user.team_id,
+                skip,
+                limit,
+                status,
+                deadline_from,
+                deadline_to,
             )
-            return tasks
+        return {
+            "items": tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_user_overdue_tasks(
         self,
         current_user: User,
         uow: IUnitOfWork,
+        page: int,
+        limit: int,
         user_id: int | None = None,
     ) -> List[Task]:
         """
@@ -294,44 +313,57 @@ class TaskService:
         Обычный пользователь видит только свои задачи
         """
         async with uow:
+            skip = (page - 1) * limit
+
             if current_user.team_id is None:
                 raise ForbiddenError("You're not in a team")
-            if user_id:
-                if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
-                    tasks = await uow.tasks_repo.get_overdue_for_user(
-                        user_id,
-                        current_user.team_id,
-                    )
-                else:
+
+            if user_id and user_id != current_user.id:
+                if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                     raise ForbiddenError(
                         "Only admins and managers can view other user's tasks"
                     )
-            else:
-                tasks = await uow.tasks_repo.get_overdue_for_user(
-                    current_user.id,
-                    current_user.team_id,
-                )
 
-        return tasks
+            target_id = user_id if user_id else current_user.id
+
+            tasks, total = await uow.tasks_repo.get_overdue_for_user(
+                target_id, current_user.team_id, skip, limit
+            )
+
+        return {
+            "items": tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_team_overdue_tasks(
         self,
         current_user: User,
         uow: IUnitOfWork,
+        page: int,
+        limit: int,
     ) -> List[Task]:
         """
         Получить просроченные задачи команды.
         Только для admin и manager
         """
         async with uow:
+            skip = (page - 1) * limit
+
             if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                 raise ForbiddenError(
                     "Only admins and managers can view team tasks"
                 )
-            tasks = await uow.tasks_repo.get_overdue_for_team(
-                current_user.team_id
+            tasks, total = await uow.tasks_repo.get_overdue_for_team(
+                current_user.team_id, skip, limit
             )
-            return tasks
+        return {
+            "items": tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     def _can_change_status(
         self, task: Task, new_status: TaskStatus, user: User

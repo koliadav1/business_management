@@ -8,7 +8,6 @@ from src.repositories.base_repository import SQLRepository
 from src.core.interfaces.repositories.evaluations_repository import (
     IEvaluationsRepository,
 )
-from src.models.users import User
 from src.models.evaluations import Evaluation
 
 
@@ -24,8 +23,8 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         return result.scalar_one_or_none()
 
     async def get_user_evaluations(
-        self, user_id: int, team_id: int | None = None
-    ) -> List[Evaluation]:
+        self, user_id: int, skip: int, limit: int, team_id: int | None = None
+    ) -> tuple[List[Evaluation], int]:
         """Получить все оценки пользователя"""
         query = (
             select(Evaluation)
@@ -36,8 +35,16 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         if team_id:
             query = query.where(Task.team_id == team_id)
 
-        result = await self._session.execute(query)
-        return result.scalars().all()
+        paginated_query = query.offset(skip).limit(limit)
+
+        result = await self._session.execute(paginated_query)
+
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return result, total or 0
 
     async def get_statistics(
         self,
@@ -94,10 +101,8 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         }
 
     async def get_evaluations_with_tasks(
-        self,
-        user_id: int,
-        team_id: int,
-    ) -> List[tuple[Evaluation, Task]]:
+        self, user_id: int, team_id: int, skip: int, limit: int
+    ) -> tuple[List[tuple[Evaluation, Task]], int]:
         """Получить данные об оценках и задачах пользователя"""
         query = (
             select(
@@ -107,21 +112,37 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
             .join(Task, Evaluation.task_id == Task.id)
             .where(Task.executor_id == user_id, Task.team_id == team_id)
         )
+        paginated_query = query.offset(skip).limit(limit)
 
-        result = await self._session.execute(query)
-        return result.all()
+        result = await self._session.execute(paginated_query)
 
-    async def get_by_team(self, team_id: int) -> List[dict]:
-        """Получить оценки и задачи для всей команды"""
-        result = await self._session.execute(
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return result, total or 0
+
+    async def get_by_team(
+        self, team_id: int, skip: int, limit: int
+    ) -> tuple[List[Evaluation], int]:
+        """Получить оценки для всей команды"""
+        query = (
             select(
                 Evaluation,
-                Task,
-                User.email,
             )
             .join(Task, Evaluation.task_id == Task.id)
-            .join(User, Task.executor_id == User.id)
             .where(Task.team_id == team_id)
             .order_by(Evaluation.created_at.desc())
         )
-        return result.scalars().all()
+
+        paginated_query = query.offset(skip).limit(limit)
+
+        result = await self._session.execute(paginated_query)
+
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return result, total or 0
