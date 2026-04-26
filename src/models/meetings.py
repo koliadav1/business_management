@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
+    Index,
     Integer,
     String,
     DateTime,
@@ -80,6 +81,10 @@ class Meeting(Base):
         secondary="meeting_members",
         primaryjoin="Meeting.id == MeetingMember.meeting_id",
         secondaryjoin="User.id == MeetingMember.member_id",
+    )
+
+    __table_args__ = (
+        Index("ix_is_active_start_time", "is_active", "start_time"),
     )
 
     @property

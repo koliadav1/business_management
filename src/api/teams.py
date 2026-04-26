@@ -85,21 +85,6 @@ async def get_my_team(
 
 
 @router.get(
-    "/{team_id}",
-    response_model=TeamRead,
-    summary="Получить информацию о команде",
-)
-async def get_team(
-    team_id: int = Path(gt=0, description="ID команды"),
-    uow: IUnitOfWork = Depends(get_uow),
-    service: TeamService = Depends(),
-):
-    """Получение базовой информации о команде"""
-    team = await service.get_team(uow=uow, team_id=team_id)
-    return team
-
-
-@router.get(
     "/members",
     response_model=List[UserRead],
     summary="Получить состав команды",
@@ -269,3 +254,18 @@ async def get_invite_code(
     """
     inv_code = await service.get_team_invite_code(uow, current_user)
     return InviteCodeRead(invite_code=inv_code)
+
+
+@router.get(
+    "/{team_id}",
+    response_model=TeamRead,
+    summary="Получить информацию о команде",
+)
+async def get_team(
+    team_id: int = Path(gt=0, description="ID команды"),
+    uow: IUnitOfWork = Depends(get_uow),
+    service: TeamService = Depends(),
+):
+    """Получение базовой информации о команде"""
+    team = await service.get_team(uow=uow, team_id=team_id)
+    return team

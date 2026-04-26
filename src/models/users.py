@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, DateTime, func
+from sqlalchemy import ForeignKey, Index, String, DateTime, func
 from sqlalchemy import Enum as SQLEnum
 from fastapi_users.db import SQLAlchemyBaseUserTable
 from datetime import datetime
@@ -39,7 +39,7 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     name: Mapped[str | None] = mapped_column(String(30), nullable=True)
     surname: Mapped[str | None] = mapped_column(String(30), nullable=True)
     team_id: Mapped[int | None] = mapped_column(
-        ForeignKey("teams.id", ondelete="SET NULL"), index=True
+        ForeignKey("teams.id", ondelete="SET NULL")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -74,6 +74,8 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     comments: Mapped[List["Comment"]] = relationship(
         back_populates="author", foreign_keys="Comment.author_id"
     )
+
+    __table_args__ = (Index("ix_team_role", "team_id", "role"),)
 
     def __str__(self):
         return self.email
