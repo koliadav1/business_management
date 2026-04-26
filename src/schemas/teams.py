@@ -50,3 +50,15 @@ class AddMember(BaseModel):
 
 class UpdateRole(BaseModel):
     role: UserRole = Field(..., description="Новая роль (manager, employee)")
+
+
+class JoinByTeamCode(BaseModel):
+    invite_code: str = Field(
+        ..., min_length=8, max_length=16, description="Код приглашения команды"
+    )
+
+
+class InviteCodeRead(BaseModel):
+    invite_code: str = Field(..., description="Код приглашения команды")
+
+    model_config = ConfigDict(from_attributes=True)
