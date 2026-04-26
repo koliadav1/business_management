@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, Path, Query
 
+from src.schemas.base import PaginatedRead
 from src.schemas.users import UserRead
 from src.services.team_service import TeamService
 from src.core.interfaces.unit_of_work import IUnitOfWork
@@ -46,15 +47,23 @@ async def create_team(
 
 @router.get(
     "/",
-    response_model=List[TeamRead],
+    response_model=PaginatedRead[TeamRead],
     summary="Получение списка команд",
 )
 async def get_all_teams(
-    uow: IUnitOfWork = Depends(get_uow), service: TeamService = Depends()
+    uow: IUnitOfWork = Depends(get_uow),
+    service: TeamService = Depends(),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
 ):
     """Получение списка команд"""
-    team = await service.get_all_teams(uow=uow)
-    return team
+    response = await service.get_all_teams(uow=uow, page=page, limit=limit)
+    return PaginatedRead(
+        items=response["items"],
+        total=response["total"],
+        page=response["page"],
+        page_size=response["page_size"],
+    )
 
 
 @router.get(

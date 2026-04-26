@@ -11,7 +11,9 @@ class IRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    async def get_all(self) -> List[T]:
+    async def get_all_paginated(
+        self, skip: int, limit: int
+    ) -> tuple[List[T], int]:
         """Получить все сущности"""
         pass
 
