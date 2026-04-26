@@ -36,7 +36,16 @@ class TeamService:
                     f"Team with name {name} already exists"
                 )
 
-            team = Team(name=name, description=description)
+            invite_code = None
+            while True:
+                invite_code = Team.generate_invite_code()
+                existing = await uow.teams_repo.get_by_invite_code(invite_code)
+                if not existing:
+                    break
+
+            team = Team(
+                name=name, description=description, invite_code=invite_code
+            )
             created_team = await uow.teams_repo.add(team)
 
             user = await uow._session.merge(current_user)
@@ -201,3 +210,37 @@ class TeamService:
                 ForbiddenError("You must assign another admin to replace you")
         else:
             await uow.teams_repo.remove_member(current_user)
+
+    async def join_by_team_code(
+        self, uow: IUnitOfWork, current_user: User, inv_code: str
+    ) -> Team:
+        """Присоединится к команде по коду"""
+        async with uow:
+            if current_user.team_id is not None:
+                raise UserAlreadyInTeamError("You're already in team")
+
+            team = await uow.teams_repo.get_by_invite_code(inv_code)
+            if not team:
+                raise TeamNotFoundError(f"Team with code {inv_code} not found")
+
+            user = await uow.session.merge(current_user)
+            await uow.teams_repo.add_member(team, user, UserRole.EMPLOYEE)
+
+        return team
+
+    async def get_team_invite_code(
+        self, uow: IUnitOfWork, current_user: User
+    ) -> str:
+        """
+        Получить код команды для приглашения.
+        Только для admin команды.
+        """
+        async with uow:
+            if current_user.team_id is None:
+                raise ForbiddenError("You're not in team")
+            if current_user.role != UserRole.ADMIN:
+                raise ForbiddenError("Only admin can get invite code")
+
+            team = await uow.teams_repo.get(current_user.team_id)
+
+            return team.invite_code

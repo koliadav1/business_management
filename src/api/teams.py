@@ -7,6 +7,8 @@ from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.users import User, UserRole
 from src.schemas.teams import (
     AddMember,
+    InviteCodeRead,
+    JoinByTeamCode,
     TeamCreate,
     TeamRead,
     UpdateRole,
@@ -111,7 +113,7 @@ async def get_team_members(
 
 
 @router.post(
-    "/members",
+    "/my-team/members",
     response_model=UserRead,
     status_code=201,
     summary="Добавить пользователя в команду",
@@ -137,7 +139,7 @@ async def add_member(
 
 
 @router.delete(
-    "/members/{user_id}",
+    "/my-team/members/{user_id}",
     status_code=204,
     summary="Убрать участника из команды",
     description="Только для администратора и менеджера команды",
@@ -160,7 +162,7 @@ async def remove_member(
 
 
 @router.patch(
-    "/members/{user_id}/role",
+    "/my-team/members/{user_id}/role",
     response_model=UserRead,
     summary="Изменить роль участника",
     description="Только для администратора и менеджера команды",
@@ -186,7 +188,7 @@ async def update_member_role(
 
 
 @router.delete(
-    "/",
+    "/my-team",
     status_code=204,
     summary="Удалить команду",
     description="Только для администратора",
@@ -219,3 +221,42 @@ async def remove_self(
         uow=uow,
         current_user=current_user,
     )
+
+
+@router.post(
+    "/join",
+    response_model=TeamRead,
+    status_code=200,
+    summary="Присоединиться к команде по коду",
+    description="Необходим код приглашения в команду",
+)
+async def join_by_team_code(
+    join_data: JoinByTeamCode,
+    current_user: User = Depends(get_current_user),
+    uow: IUnitOfWork = Depends(get_uow),
+    service: TeamService = Depends(),
+):
+    """Присоединение к существующей команде по коду приглашения"""
+    team = await service.join_by_team_code(
+        uow, current_user, join_data.invite_code
+    )
+    return team
+
+
+@router.get(
+    "/my-team/invite-code",
+    response_model=InviteCodeRead,
+    summary="Получить код приглашения в команду",
+    description="Только для admin",
+)
+async def get_invite_code(
+    uow: IUnitOfWork = Depends(get_uow),
+    current_user: User = Depends(get_current_user),
+    service: TeamService = Depends(),
+):
+    """
+    Получить код приглашения своей команды.
+    Только для admin
+    """
+    inv_code = await service.get_team_invite_code(uow, current_user)
+    return InviteCodeRead(invite_code=inv_code)
