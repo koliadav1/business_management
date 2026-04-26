@@ -46,3 +46,8 @@ class ITeamsRepository(IRepository[Team]):
         с дополнительной проверкой по роли
         """
         pass
+
+    @abstractmethod
+    async def get_by_invite_code(self, code: str) -> Team | None:
+        """Получить команду по коду приглашения"""
+        pass

@@ -70,3 +70,10 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
 
         invalid_users = list(set(user_ids) - set(valid_users))
         return invalid_users
+
+    async def get_by_invite_code(self, code: str) -> Team | None:
+        """Получить команду по коду приглашения"""
+        result = await self._session.execute(
+            select(Team).where(Team.invite_code == code)
+        )
+        return result.scalar_one_or_none()
