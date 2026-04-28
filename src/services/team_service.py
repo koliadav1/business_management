@@ -48,7 +48,7 @@ class TeamService:
             )
             created_team = await uow.teams_repo.add(team)
 
-            user = await uow._session.merge(current_user)
+            user = await uow.session.merge(current_user)
             await uow.teams_repo.add_member(created_team, user, UserRole.ADMIN)
         return created_team
 
@@ -125,7 +125,10 @@ class TeamService:
         Только для admin  команды
         """
         async with uow:
-            if current_user.role != UserRole or current_user.team_id is None:
+            if (
+                current_user.role != UserRole.ADMIN
+                or current_user.team_id is None
+            ):
                 raise ForbiddenError("Only team admins can remove members")
 
             user = await uow.users_repo.get(user_id)
@@ -212,17 +215,12 @@ class TeamService:
         """Покинуть команду"""
         async with uow:
             if current_user.role == UserRole.ADMIN:
-                admins = await uow.teams_repo.get_team_members(
-                    current_user.team_id, UserRole.ADMIN
+                raise ForbiddenError(
+                    "Team admin can only delete team, but not leave"
                 )
-                if any(current_user != user for user in admins):
-                    await uow.teams_repo.remove_member(current_user)
-                else:
-                    ForbiddenError(
-                        "You must assign another admin to replace you"
-                    )
             else:
-                await uow.teams_repo.remove_member(current_user)
+                cur_user = await uow.session.merge(current_user)
+                await uow.teams_repo.remove_member(cur_user)
 
     async def join_by_team_code(
         self, uow: IUnitOfWork, current_user: User, inv_code: str
