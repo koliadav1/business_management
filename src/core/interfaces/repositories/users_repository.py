@@ -18,3 +18,8 @@ class IUsersRepository(ABC):
     async def update_user_role(self, user: User, new_role: UserRole) -> None:
         """Изменить роль пользователя"""
         pass
+
+    @abstractmethod
+    async def get_by_email(self, email: str) -> User | None:
+        """Получить пользователя по почте"""
+        pass

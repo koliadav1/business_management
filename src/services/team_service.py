@@ -209,16 +209,20 @@ class TeamService:
         }
 
     async def quit_team(self, uow: IUnitOfWork, current_user: User) -> None:
-        if current_user.role == UserRole.ADMIN:
-            admins = await uow.teams_repo.get_team_members(
-                current_user.team_id, UserRole.ADMIN
-            )
-            if any(current_user != user for user in admins):
-                await uow.teams_repo.remove_member(current_user)
+        """Покинуть команду"""
+        async with uow:
+            if current_user.role == UserRole.ADMIN:
+                admins = await uow.teams_repo.get_team_members(
+                    current_user.team_id, UserRole.ADMIN
+                )
+                if any(current_user != user for user in admins):
+                    await uow.teams_repo.remove_member(current_user)
+                else:
+                    ForbiddenError(
+                        "You must assign another admin to replace you"
+                    )
             else:
-                ForbiddenError("You must assign another admin to replace you")
-        else:
-            await uow.teams_repo.remove_member(current_user)
+                await uow.teams_repo.remove_member(current_user)
 
     async def join_by_team_code(
         self, uow: IUnitOfWork, current_user: User, inv_code: str

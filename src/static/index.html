@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления бизнесом</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body>
+    <div x-data="app()" x-init="initApp">
+        <div class="container">
+            <!-- Вход/Регистрация -->
+            <div x-show="!token" class="tab-content">
+                <div class="card" style="max-width: 400px; margin: 40px auto;">
+                    <h3>Вход</h3>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" x-model="loginEmail">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" x-model="loginPassword">
+                    </div>
+                    <button @click="login">Войти</button>
+                    <hr>
+                    <h3>Регистрация</h3>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" x-model="regEmail">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" x-model="regPassword">
+                    </div>
+                    <button @click="register">Зарегистрироваться</button>
+                </div>
+            </div>
+
+            <!-- При входе -->
+            <div x-show="token">
+                <div class="tabs">
+                    <template x-for="tab in ['profile', 'teams', 'tasks', 'meetings', 'ratings', 'calendar']">
+                        <button class="tab-btn" :class="{active: activeTab === tab}" @click="activeTab = tab"
+                            x-text="tabLabel(tab)"></button>
+                    </template>
+                    <button class="tab-btn danger" @click="logout" style="margin-left:auto;">Выйти</button>
+                </div>
+
+                <div class="tab-content">
+                    <!-- Профиль -->
+                    <div x-show="activeTab === 'profile'">
+                        <div class="card">
+                            <h3>Мой профиль</h3>
+                            <div class="form-group">
+                                <label>Имя</label>
+                                <input x-model="profileForm.name">
+                            </div>
+                            <div class="form-group">
+                                <label>Фамилия</label>
+                                <input x-model="profileForm.surname">
+                            </div>
+                            <div class="form-group">
+                                <label>Телефон</label>
+                                <input x-model="profileForm.phone_number">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" x-model="profileForm.email">
+                            </div>
+                            <div class="form-group">
+                                <label>Текущий пароль (для изменения email/пароля)</label>
+                                <input type="password" x-model="profileForm.current_password">
+                            </div>
+                            <div class="form-group">
+                                <label>Новый пароль</label>
+                                <input type="password" x-model="profileForm.password">
+                            </div>
+                            <button @click="updateProfile">Обновить профиль</button>
+                            <button class="danger secondary" @click="deleteAccount" style="margin-left: 10px;">Удалить
+                                аккаунт</button>
+                        </div>
+                    </div>
+
+                    <script>
+                        function app() {
+                            return {
+                                // Авторизация
+                                token: null,
+                                currentUser: null,
+                                // UI
+                                activeTab: 'profile',
+                                loginEmail: '', loginPassword: '',
+                                regEmail: '', regPassword: '',
+                                // Профиль
+                                profileForm: { name: '', surname: '', phone_number: '', email: '', current_password: '', password: '' },
+                                // URL
+                                apiBase: 'http://localhost:8000',
+
+                                async initApp() {
+                                    const saved = localStorage.getItem('access_token');
+                                    if (saved) {
+                                        this.token = saved;
+                                        await this.refreshUser();
+                                    }
+                                },
+                                async fetchWithAuth(url, options = {}) {
+                                    if (!this.token) throw new Error('No token');
+                                    const headers = { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json', ...options.headers };
+                                    let res = await fetch(this.apiBase + url, { ...options, headers });
+                                    if (res.status === 401) {
+                                        const refreshed = await this.refreshToken();
+                                        if (refreshed) {
+                                            headers['Authorization'] = `Bearer ${this.token}`;
+                                            res = await fetch(this.apiBase + url, { ...options, headers });
+                                        } else { this.logout(); throw new Error('session expired'); }
+                                    }
+                                    return res;
+                                },
+                                async refreshToken() {
+                                    try {
+                                        const refresh = localStorage.getItem('refresh_token');
+                                        if (!refresh) return false;
+                                        const res = await fetch(this.apiBase + '/auth/refresh', { method: 'POST', headers: { 'X-Refresh-Token': refresh } });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            this.token = data.access_token;
+                                            localStorage.setItem('access_token', data.access_token);
+                                            return true;
+                                        }
+                                    } catch (e) { }
+                                    return false;
+                                },
+                                async login() {
+                                    const fd = new FormData(); fd.append('username', this.loginEmail); fd.append('password', this.loginPassword);
+                                    const res = await fetch(this.apiBase + '/auth/login', { method: 'POST', body: fd });
+                                    if (!res.ok) { alert('Ошибка входа'); return; }
+                                    const data = await res.json();
+                                    this.token = data.access_token;
+                                    localStorage.setItem('access_token', data.access_token);
+                                    localStorage.setItem('refresh_token', data.refresh_token);
+                                    await this.refreshUser();
+                                    this.activeTab = 'profile';
+                                },
+                                async register() {
+                                    const res = await fetch(this.apiBase + '/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: this.regEmail, password: this.regPassword }) });
+                                    if (!res.ok) { alert('Ошибка регистрации'); return; }
+                                    alert('Регистрация успешна, теперь войдите');
+                                    this.loginEmail = this.regEmail;
+                                    this.loginPassword = this.regPassword;
+                                    await this.login();
+                                },
+                                async refreshUser() {
+                                    try {
+                                        const res = await this.fetchWithAuth('/users/me');
+                                        if (res.ok) {
+                                            this.currentUser = await res.json();
+                                            this.profileForm = {
+                                                name: this.currentUser.name || '',
+                                                surname: this.currentUser.surname || '',
+                                                phone_number: this.currentUser.phone_number || '',
+                                                email: this.currentUser.email || '',
+                                                current_password: '',
+                                                password: ''
+                                            };
+                                        }
+                                    } catch (e) {
+                                        console.warn(e);
+                                    }
+                                },
+
+                                async updateProfile() {
+                                    const updateData = {};
+
+                                    if (this.profileForm.name !== undefined) updateData.name = this.profileForm.name || null;
+                                    if (this.profileForm.surname !== undefined) updateData.surname = this.profileForm.surname || null;
+                                    if (this.profileForm.phone_number !== undefined) updateData.phone_number = this.profileForm.phone_number || null;
+
+                                    const changingEmail = this.profileForm.email && this.profileForm.email !== this.currentUser?.email;
+                                    const changingPassword = this.profileForm.password && this.profileForm.password.length > 0;
+
+                                    if (changingEmail) {
+                                        updateData.email = this.profileForm.email;
+                                    }
+                                    if (changingPassword) {
+                                        updateData.password = this.profileForm.password;
+                                    }
+
+                                    if ((changingEmail || changingPassword) && this.profileForm.current_password) {
+                                        updateData.current_password = this.profileForm.current_password;
+                                    } else if (changingEmail || changingPassword) {
+                                        alert('Для изменения email или пароля укажите текущий пароль');
+                                        return;
+                                    }
+
+                                    if (Object.keys(updateData).length === 0) {
+                                        alert('Нет данных для обновления');
+                                        return;
+                                    }
+
+                                    try {
+                                        const res = await this.fetchWithAuth('/users/me', {
+                                            method: 'PATCH',
+                                            body: JSON.stringify(updateData)
+                                        });
+
+                                        if (res.ok) {
+                                            alert('Профиль обновлен');
+                                            await this.refreshUser();
+                                            this.profileForm.current_password = '';
+                                            this.profileForm.password = '';
+                                        } else {
+                                            const error = await res.json();
+                                            alert('Ошибка: ' + JSON.stringify(error.detail || error));
+                                        }
+                                    } catch (e) {
+                                        alert('Ошибка: ' + e.message);
+                                    }
+                                },
+                                async deleteAccount() {
+                                    if (!confirm('Удалить аккаунт? Это действие необратимо!')) return;
+
+                                    const password = prompt('Введите ваш пароль для подтверждения:');
+                                    if (!password) return;
+
+                                    try {
+                                        const res = await this.fetchWithAuth(`/users/me?password=${encodeURIComponent(password)}`, {
+                                            method: 'DELETE'
+                                        });
+
+                                        if (res.ok) {
+                                            alert('Аккаунт удален');
+                                            this.logout();
+                                        } else {
+                                            const error = await res.json();
+                                            alert('Ошибка: ' + JSON.stringify(error.detail || error));
+                                        }
+                                    } catch (e) {
+                                        alert('Ошибка: ' + e.message);
+                                    }
+                                },
+                                logout() { localStorage.clear(); this.token = null; this.currentUser = null; this.activeTab = 'profile'; location.reload(); },
+                                // Вспомогательное
+                                tabLabel(t) { return { profile: 'Профиль', teams: 'Команды', tasks: 'Задачи', meetings: 'Встречи', ratings: 'Оценки', calendar: 'Календарь' }[t]; },
+                            }
+                        }
+                    </script>
+</body>
+
+</html>

@@ -50,7 +50,15 @@ class UserNotInTeamError(ConflictError):
     pass
 
 
-class TeamAlreadyExistsError(ConflictError):
+class AlreadyExistsError(ConflictError):
+    pass
+
+
+class UserAlreadyExistsError(AlreadyExistsError):
+    pass
+
+
+class TeamAlreadyExistsError(AlreadyExistsError):
     pass
 
 
