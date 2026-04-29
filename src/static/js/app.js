@@ -20,6 +20,8 @@ function app() {
         secelctedTask: null,
         lastValidStatus: '',
         editTaskForm: { description: '', deadline: '', executor_id: '' },
+        // Оценки
+        myEvaluations: [], rateTaskId: '', rateValue: 5, rateComment: '', rateableTasks: [],
         // URL
         apiBase: 'http://localhost:8000',
 
@@ -35,6 +37,16 @@ function app() {
                     this.selectedTask = null;
                     this.editTaskForm = { description: '', deadline: '', executor_id: '' };
                     this.newCommentText = '';
+                }
+            });
+            this.$watch('rateTaskId', (id) => {
+                const item = this.rateableTasks.find(i => String(i.task.id) === String(id));
+                if (item && item.evaluation) {
+                    this.rateValue = item.evaluation.rating;
+                    this.rateComment = item.evaluation.comment;
+                } else {
+                    this.rateValue = 5;
+                    this.rateComment = '';
                 }
             });
         },
@@ -93,6 +105,50 @@ function app() {
             await this.loadAllTeams();
             await this.loadMyTeam();
             await this.loadMyTasks(); await this.loadTeamTasks();
+            await this.loadMyEvaluations();
+            await this.loadRateableTasks();
+        },
+        // Оценки
+        async loadMyEvaluations() {
+            const res = await this.fetchWithAuth('/evaluations/with-tasks?limit=100');
+            if (res.ok) this.myEvaluations = (await res.json()).items;
+        },
+        async loadRateableTasks() {
+            if (!this.isAdminOrManager) return;
+
+            try {
+                const res = await this.fetchWithAuth('/tasks/done?limit=100');
+                if (res.ok) {
+                    const data = await res.json();
+                    this.rateableTasks = data.items;
+                } else {
+                    this.rateableTasks = [];
+                }
+            } catch (e) {
+                console.error(e);
+                this.rateableTasks = [];
+            }
+        },
+        get isAlreadyRated() {
+            const item = this.rateableTasks.find(i => String(i.task?.id) === String(this.rateTaskId));
+            return !!item?.evaluation;
+        },
+        async submitRating() {
+            if (!this.rateTaskId) return;
+
+            const res = await this.fetchWithAuth(`/evaluations/rate/${this.rateTaskId}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    rating: parseInt(this.rateValue),
+                    comment: this.rateComment
+                })
+            });
+
+            if (res.ok) {
+                alert('Оценка сохранена');
+                await this.loadRateableTasks();
+                if (this.loadMyEvaluations) await this.loadMyEvaluations();
+            }
         },
         // Задачи
         async createTask() {

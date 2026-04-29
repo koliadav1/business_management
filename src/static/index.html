@@ -157,7 +157,9 @@
                             <input type="datetime-local" x-model="newTaskDeadline">
                             <select x-model="newTaskExecutorId">
                                 <option value="">Выберите исполнителя</option>
-                                <template x-for="m in teamMembers" :key="m.id">
+                                <template
+                                    x-for="m in teamMembers.filter(m => {if (m.id === currentUser.id) return false;if (isTeamAdmin) return true;if (canManageTasks) return m.role === 'employee';})"
+                                    :key="m.id">
                                     <option :value="m.id" x-text="m.name || m.email"></option>
                                 </template>
                             </select>
@@ -188,7 +190,38 @@
                             <button @click="loadTeamTasks">Обновить</button>
                         </div>
                     </div>
-
+                    <!-- Оценки -->
+                    <div x-show="activeTab === 'ratings'">
+                        <div x-show="isAdminOrManager">
+                            <h3>Оценить задачу</h3>
+                            <select x-model="rateTaskId">
+                                <option value="">Выберите задачу</option>
+                                <template
+                                    x-for="t in rateableTasks.filter(t => isTeamAdmin || t.task.author_id === currentUser.id)"
+                                    :key="
+                                    t.task.id">
+                                    <option :value="t.task.id"
+                                        x-text="t.task.description + ' (исп: '+t.task.executor_id+')'"></option>
+                                </template>
+                            </select>
+                            <input type="number" min="1" max="5" placeholder="Оценка 1-5" x-model="rateValue">
+                            <textarea placeholder="Комментарий" x-model="rateComment"></textarea>
+                            <button @click="submitRating" :disabled="!rateTaskId">
+                                <span x-text="isAlreadyRated ? 'Изменить оценку' : 'Поставить оценку'"></span>
+                            </button>
+                        </div>
+                        <div x-show="!isTeamAdmin">
+                            <h3>Оценки (мои задачи)</h3>
+                            <template x-for="ev in myEvaluations">
+                                <div><b>Задача <span x-text="ev.task?.id"></b></span>: <span
+                                        x-text="ev.task?.description"></span>
+                                    <div>Оценка: <span x-text="ev.evaluation?.rating">/5</span></div>
+                                    <div>Комментарий: <span x-text="ev.evaluation?.comment"></span></div>
+                                </div>
+                            </template>
+                            <button @click="loadMyEvaluations">Обновить</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,7 +242,7 @@
                         </div>
                     </template>
                 </div>
-                <div>
+                <div x-show="isTaskExecutorAdminAuthor">
                     <textarea placeholder="Новый комментарий" x-model="newCommentText"></textarea>
                     <button @click="addCommentToTask">Отправить</button>
                 </div>

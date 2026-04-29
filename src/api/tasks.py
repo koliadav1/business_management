@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from src.schemas.base import DateFilter, PaginatedRead
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.tasks import TaskStatus
+from src.schemas.evaluations import EvaluationWithTaskRead
 from src.services.task_service import TaskService
 from src.models.users import User
 from src.schemas.tasks import (
@@ -82,6 +83,41 @@ async def get_user_tasks(
     )
     return PaginatedRead(
         items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
+
+
+@router.get(
+    "/done",
+    response_model=PaginatedRead[EvaluationWithTaskRead],
+    summary="Получить сделанные задачи команды и их оценки",
+    description="Только для admin и manager",
+)
+async def get_evaluations_with_tasks(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    uow: IUnitOfWork = Depends(get_uow),
+    service: TaskService = Depends(),
+):
+    """
+    Получить сделанные задачи команды и их оценки.
+    Только для admin и manager
+    """
+    result = await service.get_done_tasks_with_evaluations(
+        uow=uow,
+        current_user=current_user,
+        page=page,
+        limit=limit,
+    )
+    evaluations_and_tasks = list(
+        EvaluationWithTaskRead(evaluation=evaluation, task=task)
+        for task, evaluation in result["items"]
+    )
+    return PaginatedRead(
+        items=evaluations_and_tasks,
         total=result["total"],
         page=result["page"],
         page_size=result["page_size"],

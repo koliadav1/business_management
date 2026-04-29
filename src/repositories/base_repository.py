@@ -42,7 +42,7 @@ class SQLRepository(IRepository[T]):
 
     async def update(self, entity: T) -> T:
         """Обновить сущность"""
-        self._session.merge(entity)
+        await self._session.merge(entity)
         await self._session.flush()
         await self._session.refresh(entity)
         return entity

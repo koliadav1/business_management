@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import List
 
+from src.models.evaluations import Evaluation
+
 from .dependencies import CheckTeamLogic
 from src.core.exceptions import (
     ForbiddenError,
@@ -363,6 +365,41 @@ class TaskService:
             tasks, total = await uow.tasks_repo.get_overdue_for_team(
                 current_user.team_id, skip, limit
             )
+        return {
+            "items": tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
+
+    async def get_done_tasks_with_evaluations(
+        self,
+        uow: IUnitOfWork,
+        current_user: User,
+        page: int,
+        limit: int,
+    ) -> List[tuple[Task, Evaluation]]:
+        """
+        Получить все сделанные задачи команды с соответствующими оценками.
+        Только для admin и manager
+        """
+        async with uow:
+            skip = (page - 1) * limit
+            if current_user.team_id is None:
+                raise ForbiddenError("You are not in the team")
+
+            if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+                raise ForbiddenError(
+                    "Only admins and managers "
+                    "can view other user's evaluations"
+                )
+
+            tasks, total = (
+                await uow.evaluations_repo.get_done_tasks_with_evaluations(
+                    current_user.team_id, skip, limit
+                )
+            )
+
         return {
             "items": tasks,
             "total": total,

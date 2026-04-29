@@ -3,7 +3,7 @@ from typing import List
 
 from sqlalchemy import case, func, select
 
-from src.models.tasks import Task
+from src.models.tasks import Task, TaskStatus
 from src.repositories.base_repository import SQLRepository
 from src.core.interfaces.repositories.evaluations_repository import (
     IEvaluationsRepository,
@@ -102,7 +102,7 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
 
     async def get_evaluations_with_tasks(
         self, user_id: int, team_id: int, skip: int, limit: int
-    ) -> tuple[List[tuple[Evaluation, Task]], int]:
+    ) -> tuple[tuple[Evaluation, Task], int]:
         """Получить данные об оценках и задачах пользователя"""
         query = (
             select(
@@ -136,6 +136,29 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
             .order_by(Evaluation.created_at.desc())
         )
 
+        paginated_query = query.offset(skip).limit(limit)
+
+        result = await self._session.execute(paginated_query)
+
+        count_query = await self._session.execute(
+            select(func.count()).select_from(query.subquery())
+        )
+        total = count_query.scalar_one_or_none()
+
+        return result, total or 0
+
+    async def get_done_tasks_with_evaluations(
+        self, team_id: int, skip: int, limit: int
+    ) -> tuple[tuple[Task, Evaluation], int]:
+        """Получить оценки сделанные задачи и оценки к ним, если они есть"""
+        query = (
+            select(
+                Task,
+                Evaluation,
+            )
+            .outerjoin(Evaluation, Evaluation.task_id == Task.id)
+            .where(Task.team_id == team_id, Task.status == TaskStatus.DONE)
+        )
         paginated_query = query.offset(skip).limit(limit)
 
         result = await self._session.execute(paginated_query)

@@ -109,8 +109,12 @@ async def get_evaluations_with_tasks(
         limit=limit,
         user_id=user_id,
     )
+    evaluations_and_tasks = list(
+        EvaluationWithTaskRead(evaluation=evaluation, task=task)
+        for evaluation, task in result["items"]
+    )
     return PaginatedRead(
-        items=result["items"],
+        items=evaluations_and_tasks,
         total=result["total"],
         page=result["page"],
         page_size=result["page_size"],
