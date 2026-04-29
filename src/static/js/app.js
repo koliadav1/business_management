@@ -8,12 +8,15 @@ function app() {
         loginEmail: '', loginPassword: '',
         regEmail: '', regPassword: '',
         // Профиль
-        profileForm: { name: '', surname: '', phone_number: '', email: '', current_password: '', password: '' },
+        profileForm: { id: '', name: '', surname: '', phone_number: '', email: '', current_password: '', password: '' },
         // Команды
         allTeams: [],
         myTeam: null,
         teamMembers: [],
         newTeamName: '', newTeamDesc: '', inviteCode: '', inviteCodeValue: '',
+        addMemberEmail: '',
+        addMemberRole: 'employee',
+        addMemberId: '',
         // Задачи
         myTasks: [], teamTasks: [], newTaskDesc: '', newTaskDeadline: '', newTaskExecutorId: '',
         newCommentText: '',
@@ -89,10 +92,11 @@ function app() {
                 if (res.ok) {
                     this.currentUser = await res.json();
                     this.profileForm = {
+                        id: this.currentUser.id,
                         name: this.currentUser.name || '',
                         surname: this.currentUser.surname || '',
                         phone_number: this.currentUser.phone_number || '',
-                        email: this.currentUser.email || '',
+                        email: this.currentUser.email,
                         current_password: '',
                         password: ''
                     };
@@ -387,6 +391,41 @@ function app() {
                 { method: 'PATCH', body: JSON.stringify({ role: newRole }) }
             );
             await this.loadMyTeam();
+        },
+        async addMemberById() {
+            if (!this.addMemberId) {
+                alert('Введите ID пользователя');
+                return;
+            }
+            await this.addMemberToTeam(parseInt(this.addMemberId), this.addMemberRole);
+        },
+        async addMemberToTeam(userId, role) {
+            const isAlreadyInTeam = this.teamMembers.some(m => m.id === userId);
+            if (isAlreadyInTeam) {
+                alert('Этот пользователь уже в команде');
+                return;
+            }
+            try {
+                const res = await this.fetchWithAuth('/teams/my-team/members', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: userId,
+                        role: role
+                    })
+                });
+                if (res.ok) {
+                    alert('Пользователь добавлен в команду');
+                    this.addMemberEmail = '';
+                    this.addMemberId = '';
+                    this.addMemberRole = 'employee';
+                    await this.loadMyTeam(); // Обновляем список участников
+                } else {
+                    const error = await res.json();
+                    alert('Ошибка: ' + JSON.stringify(error.detail || error));
+                }
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
+            }
         },
         // Профиль
         async updateProfile() {

@@ -52,6 +52,10 @@
                         <div>
                             <h3>Мой профиль</h3>
                             <div>
+                                <label>ID</label>
+                                <span x-text="profileForm.id"></span>
+                            </div>
+                            <div>
                                 <label>Имя</label>
                                 <input x-model="profileForm.name">
                             </div>
@@ -121,6 +125,17 @@
                                         <strong>Код приглашения:</strong> <span x-text="inviteCodeValue"></span><br>
                                     </div>
                                     <button @click="deleteTeam">Удалить команду</button>
+                                    <div>
+                                        <h4>Добавить участника</h4>
+                                        <div>
+                                            <input placeholder="ID пользователя" x-model="addMemberId">
+                                            <select x-model="addMemberRole">
+                                                <option value="employee">Сотрудник</option>
+                                                <option value="manager">Менеджер</option>
+                                            </select>
+                                            <button @click="addMemberById">Добавить</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div>

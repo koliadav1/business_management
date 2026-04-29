@@ -95,7 +95,10 @@ class TeamService:
         Только для admin команды.
         """
         async with uow:
-            if current_user.role != UserRole or current_user.team_id is None:
+            if (
+                current_user.role != UserRole.ADMIN
+                or current_user.team_id is None
+            ):
                 raise ForbiddenError("Only team admins can add members")
 
             team = await uow.teams_repo.get(current_user.team_id)
