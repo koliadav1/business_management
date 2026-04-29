@@ -82,7 +82,7 @@ class TaskService:
                 )
 
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
@@ -113,11 +113,16 @@ class TaskService:
                 )
 
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
                     "Only admins and task authors can manage task"
+                )
+
+            if task.status in [TaskStatus.CANCELLED, TaskStatus.DONE]:
+                raise ForbiddenError(
+                    "You can't update cancelled or done tasks"
                 )
 
             if description:
@@ -147,7 +152,7 @@ class TaskService:
                 )
 
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
                     "Only admins and task authors can manage task"
@@ -169,7 +174,7 @@ class TaskService:
         """
         async with uow:
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
             if not self._can_change_status(task, new_status, current_user):
                 raise ForbiddenError(
                     f"User {current_user.role.value} can't change status from "
@@ -207,7 +212,7 @@ class TaskService:
         """
         async with uow:
             task = await uow.tasks_repo.get_task_with_comments(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if current_user.id == task.executor_id or current_user.role in [
                 UserRole.ADMIN,

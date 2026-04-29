@@ -38,7 +38,6 @@
                     <button @click="register">Зарегистрироваться</button>
                 </div>
             </div>
-
             <!-- При входе -->
             <div x-show="token">
                 <div>
@@ -47,7 +46,6 @@
                     </template>
                     <button @click="logout">Выйти</button>
                 </div>
-
                 <div>
                     <!-- Профиль -->
                     <div x-show="activeTab === 'profile'">
@@ -82,10 +80,8 @@
                                 аккаунт</button>
                         </div>
                     </div>
-
                     <!-- Команды -->
                     <div x-show="activeTab === 'teams'">
-
                         <!-- Без команды -->
                         <div x-show="!currentUser?.team_id">
                             <div>
@@ -111,7 +107,6 @@
                                 <button @click="loadAllTeams">Обновить список</button>
                             </div>
                         </div>
-
                         <!-- В команде -->
                         <div x-show="currentUser?.team_id && myTeam">
                             <div>
@@ -154,7 +149,103 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Задачи -->
+                    <div x-show="activeTab === 'tasks'">
+                        <div x-show="isAdminOrManager">
+                            <h3>Создать задачу</h3>
+                            <input type="text" placeholder="Описание" x-model="newTaskDesc">
+                            <input type="datetime-local" x-model="newTaskDeadline">
+                            <select x-model="newTaskExecutorId">
+                                <option value="">Выберите исполнителя</option>
+                                <template x-for="m in teamMembers" :key="m.id">
+                                    <option :value="m.id" x-text="m.name || m.email"></option>
+                                </template>
+                            </select>
+                            <button @click="createTask">Создать</button>
+                        </div>
+                        <div>
+                            <h3>Мои задачи</h3>
+                            <template x-for="task in myTasks">
+                                <div @click="openTaskDetail(task)" style="cursor: pointer;">
+                                    Задача: <span><b x-text="task.description"></b></span>
+                                    <strong>Статус:</strong> <span x-text="task.status"></span>
+                                    <strong>Дедлайн:</strong> <span x-text="formatDate(task.deadline)"> </span>
+                                </div>
+                            </template>
+                            <button @click="loadMyTasks">Обновить</button>
+                        </div>
+                        <div x-show="isAdminOrManager">
+                            <h3>Задачи команды</h3>
+                            <template x-for="task in teamTasks">
+                                <div @click="openTaskDetail(task)" style="cursor: pointer;">
+                                    Задача: <span><b x-text=" task.description"></b> (исп:
+                                        <span x-text="task.executor_id"></span>)
+                                    </span>
+                                    <strong>Статус:</strong> <span x-text="task.status"></span>
+                                    <strong>Дедлайн:</strong> <span x-text="formatDate(task.deadline)"> </span>
+                                </div>
+                            </template>
+                            <button @click="loadTeamTasks">Обновить</button>
+                        </div>
+                    </div>
+
                 </div>
+            </div>
+        </div>
+        <!-- Детали задачи -->
+        <div x-show="selectedTask" @click.self="selectedTask=null">
+            <div>
+                <h3>Задача</h3>
+                <p><b>Описание:</b> <span x-text="selectedTask?.description"></span></p>
+                <p><b>Статус:</b> <span x-text="selectedTask?.status"></span></p>
+                <p><b>Дедлайн:</b> <span x-text="formatDate(selectedTask?.deadline)"></span></p>
+                <p><b>Исполнитель:</b> <span x-text="selectedTask?.executor_id"></span></p>
+                <p><b>Автор:</b> <span x-text="selectedTask?.author_id"></span></p>
+                <b>Комментарии:</b>
+                <div x-show="selectedTask?.comments?.length > 0">
+                    <template x-for="c in selectedTask.comments">
+                        <div>
+                            <span x-text="c.content"></span> (автор <span x-text="c.author_id"></span>)
+                        </div>
+                    </template>
+                </div>
+                <div>
+                    <textarea placeholder="Новый комментарий" x-model="newCommentText"></textarea>
+                    <button @click="addCommentToTask">Отправить</button>
+                </div>
+                <div x-show="isTaskExecutorAdminAuthor">
+                    <b>Изменить статус:</b>
+                    <select x-model="selectedTask.status" @change="updateTaskStatus">
+                        <option value="new">new</option>
+                        <option value="in_progress">in_progress</option>
+                        <option value="done">done</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </div>
+                <button @click="selectedTask=null">Закрыть</button>
+            </div>
+            <div x-show="isTaskAuthorOrAdmin">
+                <hr>
+                <h4>Редактировать задачу</h4>
+                <div>
+                    <label>Описание:</label>
+                    <input type="text" x-model="editTaskForm.description">
+                </div>
+                <div>
+                    <label>Дедлайн:</label>
+                    <input type="datetime-local" x-model="editTaskForm.deadline">
+                </div>
+                <div>
+                    <label>Исполнитель:</label>
+                    <select x-model="editTaskForm.executor_id">
+                        <option value="">Выберите исполнителя</option>
+                        <template x-for="m in teamMembers" :key="m.id">
+                            <option :value="m.id" x-text="m.name || m.email"></option>
+                        </template>
+                    </select>
+                </div>
+                <button @click="updateTask">Сохранить изменения</button>
+                <button @click="cancelEditTask">Отмена</button>
             </div>
         </div>
     </div>

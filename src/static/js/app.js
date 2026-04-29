@@ -14,6 +14,12 @@ function app() {
         myTeam: null,
         teamMembers: [],
         newTeamName: '', newTeamDesc: '', inviteCode: '', inviteCodeValue: '',
+        // Задачи
+        myTasks: [], teamTasks: [], newTaskDesc: '', newTaskDeadline: '', newTaskExecutorId: '',
+        newCommentText: '',
+        secelctedTask: null,
+        lastValidStatus: '',
+        editTaskForm: { description: '', deadline: '', executor_id: '' },
         // URL
         apiBase: 'http://localhost:8000',
 
@@ -24,8 +30,14 @@ function app() {
                 await this.refreshUser();
                 await this.loadInitialData();
             }
+            this.$watch('activeTab', (newTab) => {
+                if (newTab !== 'tasks') {
+                    this.selectedTask = null;
+                    this.editTaskForm = { description: '', deadline: '', executor_id: '' };
+                    this.newCommentText = '';
+                }
+            });
         },
-
         async fetchWithAuth(url, options = {}) {
             if (!this.token) throw new Error('No token');
             const headers = { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json', ...options.headers };
@@ -39,7 +51,6 @@ function app() {
             }
             return res;
         },
-
         async refreshToken() {
             try {
                 const refresh = localStorage.getItem('refresh_token');
@@ -60,7 +71,6 @@ function app() {
             } catch (e) { }
             return false;
         },
-
         async refreshUser() {
             try {
                 const res = await this.fetchWithAuth('/users/me');
@@ -79,12 +89,132 @@ function app() {
                 console.warn(e);
             }
         },
-
         async loadInitialData() {
             await this.loadAllTeams();
             await this.loadMyTeam();
+            await this.loadMyTasks(); await this.loadTeamTasks();
         },
-
+        // Задачи
+        async createTask() {
+            if (!this.newTaskExecutorId) return alert('Выберите исполнителя');
+            const res = await this.fetchWithAuth(
+                '/tasks/',
+                {
+                    method: 'POST',
+                    body: JSON.stringify(
+                        {
+                            description: this.newTaskDesc,
+                            deadline: new Date(this.newTaskDeadline).toISOString(),
+                            executor_id: parseInt(this.newTaskExecutorId)
+                        }
+                    )
+                }
+            );
+            if (res.ok) { alert('Задача создана'); this.loadMyTasks(); this.loadTeamTasks(); }
+        },
+        async loadMyTasks() {
+            try {
+                const res = await this.fetchWithAuth('/tasks/?limit=100');
+                if (res.ok) this.myTasks = (await res.json()).items;
+            } catch (e) { }
+        },
+        async loadTeamTasks() {
+            if (!this.isAdminOrManager) return;
+            try {
+                const res = await this.fetchWithAuth('/tasks/team?limit=100');
+                if (res.ok) this.teamTasks = (await res.json()).items;
+            } catch (e) { }
+        },
+        async openTaskDetail(task) {
+            const res = await this.fetchWithAuth(`/tasks/${task.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                this.selectedTask = data;
+                this.lastValidStatus = data.status;
+                this.editTaskForm = {
+                    description: data.description || '',
+                    deadline: data.deadline ? this.formatDateTimeLocal(data.deadline) : '',
+                    executor_id: data.executor_id || ''
+                };
+            }
+        },
+        async addCommentToTask() {
+            if (!this.selectedTask || !this.newCommentText) return;
+            await this.fetchWithAuth(
+                `/comments/${this.selectedTask.id}`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ content: this.newCommentText })
+                }
+            );
+            this.newCommentText = '';
+            await this.openTaskDetail(this.selectedTask);
+        },
+        async updateTaskStatus() {
+            const taskId = this.selectedTask.id;
+            const newStatus = this.selectedTask.status;
+            const res = await this.fetchWithAuth(`/tasks/${taskId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (res.ok) {
+                this.lastValidStatus = newStatus;
+                const taskInList = this.teamTasks.find(t => t.id === taskId);
+                if (taskInList) taskInList.status = newStatus;
+            } else {
+                const errorData = await res.json();
+                const errorMessage = errorData.detail?.[0]?.msg || 'Ошибка сервера';
+                alert(`Ошибка: ${errorMessage}`);
+                this.selectedTask.status = this.lastValidStatus;
+            }
+        },
+        async updateTask() {
+            const updateData = {};
+            if (this.editTaskForm.description !== this.selectedTask.description) {
+                updateData.description = this.editTaskForm.description;
+            }
+            if (this.editTaskForm.deadline) {
+                const newDeadline = new Date(this.editTaskForm.deadline).toISOString();
+                if (newDeadline !== this.selectedTask.deadline) {
+                    updateData.deadline = newDeadline;
+                }
+            }
+            if (this.editTaskForm.executor_id && this.editTaskForm.executor_id !== this.selectedTask.executor_id) {
+                const execRes = await this.fetchWithAuth(`/tasks/${this.selectedTask.id}/executor`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ executor_id: parseInt(this.editTaskForm.executor_id) })
+                });
+                if (!execRes.ok) {
+                    const error = await execRes.json();
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
+                    return;
+                }
+            }
+            if (Object.keys(updateData).length === 0) {
+                return;
+            }
+            const res = await this.fetchWithAuth(`/tasks/${this.selectedTask.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(updateData)
+            });
+            if (res.ok) {
+                await this.openTaskDetail(this.selectedTask);
+                await this.loadMyTasks();
+                await this.loadTeamTasks();
+            } else {
+                const error = await res.json();
+                const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                alert(`Ошибка: ${errorMessage}`);
+            }
+        },
+        cancelEditTask() {
+            this.editTaskForm = {
+                description: this.selectedTask.description || '',
+                deadline: this.selectedTask.deadline ? this.formatDateTimeLocal(this.selectedTask.deadline) : '',
+                executor_id: this.selectedTask.executor_id || ''
+            };
+        },
         // Команды
         async loadAllTeams() {
             try {
@@ -100,7 +230,6 @@ function app() {
                 this.allTeams = [];
             }
         },
-
         async loadMyTeam() {
             if (!this.currentUser?.team_id) {
                 this.myTeam = null;
@@ -130,7 +259,6 @@ function app() {
                 this.teamMembers = [];
             }
         },
-
         async createTeam() {
             const res = await this.fetchWithAuth(
                 '/teams/', {
@@ -146,7 +274,6 @@ function app() {
                 await this.loadMyTeam();
             }
         },
-
         async joinTeamByCode() {
             const res = await this.fetchWithAuth(
                 '/teams/join', {
@@ -158,7 +285,6 @@ function app() {
             );
             if (res.ok) { alert('Присоединились'); await this.refreshUser(); await this.loadMyTeam(); }
         },
-
         async quitTeam() {
             if (confirm('Выйти из команды?')) {
                 await this.fetchWithAuth('/teams/members/me', { method: 'DELETE' });
@@ -166,7 +292,6 @@ function app() {
                 await this.loadMyTeam();
             }
         },
-
         async getInviteCode() {
             const res = await this.fetchWithAuth('/teams/my-team/invite-code');
             if (res.ok) {
@@ -174,7 +299,6 @@ function app() {
                 this.inviteCodeValue = data.invite_code;
             }
         },
-
         async deleteTeam() {
             if (confirm('Удалить команду навсегда?')) {
                 await this.fetchWithAuth('/teams/my-team', { method: 'DELETE' });
@@ -182,7 +306,6 @@ function app() {
                 await this.loadMyTeam();
             }
         },
-
         async removeMember(userId) {
             if (!confirm('Удалить этого участника из команды?')) return;
             try {
@@ -202,7 +325,6 @@ function app() {
                 alert('Ошибка: ' + e.message);
             }
         },
-
         async changeMemberRole(uid, newRole) {
             await this.fetchWithAuth(
                 `/teams/my-team/members/${uid}/role`,
@@ -210,7 +332,6 @@ function app() {
             );
             await this.loadMyTeam();
         },
-
         // Профиль
         async updateProfile() {
             const updateData = {};
@@ -253,7 +374,6 @@ function app() {
                 alert('Ошибка: ' + e.message);
             }
         },
-
         // Аккаунт
         async deleteAccount() {
             if (!confirm('Удалить аккаунт?')) return;
@@ -274,7 +394,6 @@ function app() {
                 alert('Ошибка: ' + e.message);
             }
         },
-
         logout() {
             localStorage.clear();
             this.token = null;
@@ -282,7 +401,6 @@ function app() {
             this.activeTab = 'profile';
             location.reload();
         },
-
         async login() {
             const fd = new FormData(); fd.append('username', this.loginEmail); fd.append('password', this.loginPassword);
             const res = await fetch(this.apiBase + '/auth/login', { method: 'POST', body: fd });
@@ -295,7 +413,6 @@ function app() {
             await this.loadInitialData();
             this.activeTab = 'profile';
         },
-
         async register() {
             const res = await fetch(
                 this.apiBase + '/auth/register',
@@ -313,7 +430,6 @@ function app() {
             this.loginPassword = this.regPassword;
             await this.login();
         },
-
         // Вспомогательное
         tabLabel(t) {
             return {
@@ -325,7 +441,18 @@ function app() {
                 calendar: 'Календарь'
             }[t];
         },
-
         get isTeamAdmin() { return this.currentUser?.role === 'admin' && this.currentUser?.team_id; },
+        get isAdminOrManager() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
+        get canManageTasks() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
+        get isTaskExecutorAdminAuthor() { return this.selectedTask && (this.selectedTask.executor_id === this.currentUser?.id || this.currentUser?.role === 'admin' || this.selectedTask.author_id === this.currentUser?.id); },
+        get isTaskAuthorOrAdmin() {
+            return this.selectedTask && (this.selectedTask.author_id === this.currentUser?.id || this.currentUser?.role === 'admin');
+        },
+        formatDate(d) { if (!d) return ''; return new Date(d).toLocaleString(); },
+        formatDateTimeLocal(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toISOString().slice(0, 16);
+        },
     }
 }
