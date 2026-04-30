@@ -25,6 +25,16 @@ function app() {
         editTaskForm: { description: '', deadline: '', executor_id: '' },
         // Оценки
         myEvaluations: [], rateTaskId: '', rateValue: 5, rateComment: '', rateableTasks: [],
+        // Meetings
+        myMeetings: [], teamMeetings: [], newMeetingDesc: '', newMeetingStart: '', newMeetingDuration: 30, newMeetingMembers: [],
+        selectedMeeting: null,
+        editMeetingForm: {
+            description: '',
+            start_time: '',
+            duration_m: 30,
+            new_member_ids: [],
+            remove_member_ids: []
+        },
         // URL
         apiBase: 'http://localhost:8000',
 
@@ -40,6 +50,10 @@ function app() {
                     this.selectedTask = null;
                     this.editTaskForm = { description: '', deadline: '', executor_id: '' };
                     this.newCommentText = '';
+                }
+                if (newTab !== 'meetings') {
+                    this.selectedMeeting = null;
+                    this.editMeetingForm = { description: '', start_time: '', duration_m: 30, new_member_ids: [], remove_member_ids: [] };
                 }
             });
             this.$watch('rateTaskId', (id) => {
@@ -111,6 +125,155 @@ function app() {
             await this.loadMyTasks(); await this.loadTeamTasks();
             await this.loadMyEvaluations();
             await this.loadRateableTasks();
+            await this.loadMyMeetings(); await this.loadTeamMeetings();
+        },
+        // Встречи
+        async loadMyMeetings() {
+            const res = await this.fetchWithAuth('/meetings/?include_finished=false');
+            if (res.ok) this.myMeetings = await res.json();
+        },
+        async loadTeamMeetings() {
+            const res = await this.fetchWithAuth('/meetings/team');
+            if (res.ok) this.teamMeetings = await res.json();
+        },
+        async createMeeting() {
+            const body = {
+                description: this.newMeetingDesc,
+                start_time: new Date(this.newMeetingStart).toISOString(),
+                duration_m: parseInt(this.newMeetingDuration),
+                member_ids: this.newMeetingMembers.map(Number)
+            };
+            const res = await this.fetchWithAuth('/meetings/', { method: 'POST', body: JSON.stringify(body) });
+            if (res.ok) { alert('Встреча создана'); this.loadMyMeetings(); this.loadTeamMeetings(); }
+            else {
+                const errorData = await res.json();
+                const errorMessage = errorData.detail?.[0]?.msg || 'Ошибка сервера';
+                alert(`Ошибка: ${errorMessage}`);
+            }
+        },
+        async openMeetingDetail(meeting) {
+            try {
+                const res = await this.fetchWithAuth(`/meetings/${meeting.id}`);
+                if (res.ok) {
+                    this.selectedMeeting = await res.json();
+                    this.editMeetingForm = {
+                        description: this.selectedMeeting.description || '',
+                        start_time: this.selectedMeeting.start_time ? this.formatDateTimeLocal(this.selectedMeeting.start_time) : '',
+                        duration_m: this.selectedMeeting.duration_m || 30,
+                        new_member_ids: [],
+                        remove_member_ids: []
+                    };
+                } else {
+                    error = await res.json()
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
+                }
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
+            }
+        },
+        async updateMeeting() {
+            const updateData = {};
+            if (this.editMeetingForm.description !== this.selectedMeeting.description) {
+                updateData.description = this.editMeetingForm.description;
+            }
+            if (this.editMeetingForm.start_time) {
+                const newStart = new Date(this.editMeetingForm.start_time).toISOString();
+                if (newStart !== this.selectedMeeting.start_time) {
+                    updateData.start_time = newStart;
+                }
+            }
+            if (this.editMeetingForm.duration_m !== this.selectedMeeting.duration_m) {
+                updateData.duration_m = parseInt(this.editMeetingForm.duration_m);
+            }
+            if (this.editMeetingForm.new_member_ids && this.editMeetingForm.new_member_ids.length > 0) {
+                const addMembersRes = await this.fetchWithAuth(`/meetings/${this.selectedMeeting.id}/members`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        member_ids: this.editMeetingForm.new_member_ids.map(Number)
+                    })
+                });
+                if (!addMembersRes.ok) {
+                    const error = await addMembersRes.json();
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
+                    return;
+                }
+            }
+            if (this.editMeetingForm.remove_member_ids && this.editMeetingForm.remove_member_ids.length > 0) {
+                for (const memberId of this.editMeetingForm.remove_member_ids) {
+                    const removeRes = await this.fetchWithAuth(`/meetings/${this.selectedMeeting.id}/members`, {
+                        method: 'DELETE',
+                        body: JSON.stringify({ member_id: parseInt(memberId) })
+                    });
+
+                    if (!removeRes.ok) {
+                        const error = await removeRes.json();
+                        const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                        alert(`Ошибка: ${errorMessage}`);
+                        return;
+                    }
+                }
+                alert('Участники удалены');
+            }
+            if (Object.keys(updateData).length === 0 && (!this.editMeetingForm.new_member_ids || this.editMeetingForm.new_member_ids.length === 0)) {
+                alert('Нет изменений');
+                return;
+            }
+            if (Object.keys(updateData).length > 0) {
+                try {
+                    const res = await this.fetchWithAuth(`/meetings/${this.selectedMeeting.id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(updateData)
+                    });
+                    if (res.ok) {
+                        alert('Встреча обновлена');
+                        await this.openMeetingDetail(this.selectedMeeting);
+                        await this.loadMyMeetings();
+                        await this.loadTeamMeetings();
+                    } else {
+                        const error = await res.json();
+                        const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                        alert(`Ошибка: ${errorMessage}`);
+                    }
+                } catch (e) {
+                    alert('Ошибка: ' + e.message);
+                }
+            } else {
+                await this.openMeetingDetail(this.selectedMeeting);
+                await this.loadMyMeetings();
+                await this.loadTeamMeetings();
+            }
+        },
+        async cancelMeeting() {
+            if (!confirm('Отменить эту встречу?')) return;
+            try {
+                const res = await this.fetchWithAuth(`/meetings/${this.selectedMeeting.id}/cancel`, {
+                    method: 'PATCH'
+                });
+                if (res.ok) {
+                    alert('Встреча отменена');
+                    await this.openMeetingDetail(this.selectedMeeting);
+                    await this.loadMyMeetings();
+                    await this.loadTeamMeetings();
+                    this.selectedMeeting = null;
+                } else {
+                    const error = await res.json();
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
+                }
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
+            }
+        },
+        cancelEditMeeting() {
+            this.editMeetingForm = {
+                description: this.selectedMeeting.description || '',
+                start_time: this.selectedMeeting.start_time ? this.formatDateTimeLocal(this.selectedMeeting.start_time) : '',
+                duration_m: this.selectedMeeting.duration_m || 30,
+                new_member_ids: [],
+                remove_member_ids: []
+            };
         },
         // Оценки
         async loadMyEvaluations() {
@@ -418,10 +581,11 @@ function app() {
                     this.addMemberEmail = '';
                     this.addMemberId = '';
                     this.addMemberRole = 'employee';
-                    await this.loadMyTeam(); // Обновляем список участников
+                    await this.loadMyTeam();
                 } else {
                     const error = await res.json();
-                    alert('Ошибка: ' + JSON.stringify(error.detail || error));
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
                 }
             } catch (e) {
                 alert('Ошибка: ' + e.message);
@@ -463,7 +627,8 @@ function app() {
                     this.profileForm.password = '';
                 } else {
                     const error = await res.json();
-                    alert('Ошибка: ' + JSON.stringify(error.detail || error));
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
                 }
             } catch (e) {
                 alert('Ошибка: ' + e.message);
@@ -483,7 +648,8 @@ function app() {
                     this.logout();
                 } else {
                     const error = await res.json();
-                    alert('Ошибка: ' + JSON.stringify(error.detail || error));
+                    const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
+                    alert(`Ошибка: ${errorMessage}`);
                 }
             } catch (e) {
                 alert('Ошибка: ' + e.message);
@@ -538,10 +704,20 @@ function app() {
         },
         get isTeamAdmin() { return this.currentUser?.role === 'admin' && this.currentUser?.team_id; },
         get isAdminOrManager() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
-        get canManageTasks() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
+        get canManage() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
         get isTaskExecutorAdminAuthor() { return this.selectedTask && (this.selectedTask.executor_id === this.currentUser?.id || this.currentUser?.role === 'admin' || this.selectedTask.author_id === this.currentUser?.id); },
         get isTaskAuthorOrAdmin() {
             return this.selectedTask && (this.selectedTask.author_id === this.currentUser?.id || this.currentUser?.role === 'admin');
+        },
+        get canManageMeeting() {
+            if (!this.selectedMeeting) return false;
+            if (!this.selectedMeeting.is_active) return false;
+            return this.currentUser?.role === 'admin' || this.selectedMeeting.initiator_id === this.currentUser?.id;
+        },
+        get availableMembersForMeeting() {
+            if (!this.selectedMeeting || !this.teamMembers) return this.teamMembers || [];
+            const existingMemberIds = this.selectedMeeting.members?.map(m => m.id) || [];
+            return (this.teamMembers || []).filter(m => !existingMemberIds.includes(m.id));
         },
         formatDate(d) { if (!d) return ''; return new Date(d).toLocaleString(); },
         formatDateTimeLocal(dateString) {

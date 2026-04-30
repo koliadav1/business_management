@@ -140,7 +140,6 @@
                             </div>
                             <div>
                                 <h4>Участники (<span x-text="teamMembers.length"></span>)</h4>
-
                                 <template x-for="member in teamMembers">
                                     <div>
                                         <span>
@@ -156,8 +155,6 @@
                                         </span>
                                     </div>
                                 </template>
-
-                                <div x-show="teamMembers.length === 0">Загрузка участников...</div>
                                 <button @click="loadMyTeam">Обновить список участников</button>
                                 <button x-show="!isTeamAdmin" @click="quitTeam">Выйти из
                                     команды</button>
@@ -173,7 +170,7 @@
                             <select x-model="newTaskExecutorId">
                                 <option value="">Выберите исполнителя</option>
                                 <template
-                                    x-for="m in teamMembers.filter(m => {if (m.id === currentUser.id) return false;if (isTeamAdmin) return true;if (canManageTasks) return m.role === 'employee';})"
+                                    x-for="m in teamMembers.filter(m => {if (m.id === currentUser.id) return false;if (isTeamAdmin) return true;if (canManage) return m.role === 'employee';})"
                                     :key="m.id">
                                     <option :value="m.id" x-text="m.name || m.email"></option>
                                 </template>
@@ -237,6 +234,44 @@
                             <button @click="loadMyEvaluations">Обновить</button>
                         </div>
                     </div>
+                    <!-- Встречи -->
+                    <div x-show="activeTab === 'meetings'">
+                        <div x-show="canManage">
+                            <h3>Создать встречу</h3>
+                            <textarea placeholder="Описание" x-model="newMeetingDesc"></textarea>
+                            <input type="datetime-local" x-model="newMeetingStart">
+                            <input type="number" placeholder="Длительность (минут)" x-model="newMeetingDuration">
+                            <select multiple x-model="newMeetingMembers">
+                                <template x-for="m in teamMembers" :key="m.id">
+                                    <option :value="m.id" x-text="m.name || m.email"></option>
+                                </template>
+                            </select>
+                            <button @click="createMeeting">Создать</button>
+                        </div>
+                        <div>
+                            <h3>Мои запланированные встречи</h3>
+                            <template x-for="mt in myMeetings">
+                                <div @click="openMeetingDetail(mt)" style="cursor: pointer;">
+                                    <b x-text="mt.description"></b>
+                                    Начало: <span x-text="formatDate(mt.start_time)"></span>
+                                    (<span x-text="mt.duration_m"></span> мин)
+                                </div>
+                            </template>
+                            <button @click="loadMyMeetings">Обновить</button>
+                        </div>
+                        <div>
+                            <h3>Встречи команды</h3>
+                            <template x-for="mt in teamMeetings">
+                                <div @click="openMeetingDetail(mt)" style="cursor: pointer;">
+                                    <b x-text="mt.description"></b>
+                                    Начало: <span x-text="formatDate(mt.start_time)"></span>
+                                    (<span x-text="mt.duration_m"></span> мин)
+                                </div>
+                            </template>
+                            <button @click="loadTeamMeetings">Обновить</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -294,6 +329,69 @@
                 </div>
                 <button @click="updateTask">Сохранить изменения</button>
                 <button @click="cancelEditTask">Отмена</button>
+            </div>
+        </div>
+        <!-- Детали встречи -->
+        <div x-show="selectedMeeting" @click.self="selectedMeeting=null">
+            <div>
+                <h3>Встреча</h3>
+                <p><b>Описание:</b> <span x-text="selectedMeeting?.description"></span></p>
+                <p><b>Начало:</b> <span x-text="formatDate(selectedMeeting?.start_time)"></span></p>
+                <p><b>Длительность:</b> <span x-text="selectedMeeting?.duration_m"></span> минут</p>
+                <p><b>Окончание:</b> <span x-text="formatDate(selectedMeeting?.end_time)"></span></p>
+                <p><b>Статус:</b>
+                    <span x-text="selectedMeeting?.is_active ? 'Активна' : 'Отменена'"></span>
+                    <span x-show="selectedMeeting?.is_finished"> (Завершена)</span>
+                </p>
+                <b>Участники:</b>
+                <div x-show="selectedMeeting?.members?.length > 0">
+                    <template x-for="m in selectedMeeting.members" :key="m.id">
+                        <div>
+                            <span x-text="m.name || m.email"></span>
+                            (роль: <span x-text="m.role"></span>)
+                        </div>
+                    </template>
+                </div>
+                <div x-show="canManageMeeting">
+                    <hr>
+                    <h4>Редактировать встречу</h4>
+                    <div>
+                        <label>Описание:</label>
+                        <textarea x-model="editMeetingForm.description" rows="2"></textarea>
+                    </div>
+                    <div>
+                        <label>Дата и время начала:</label>
+                        <input type="datetime-local" x-model="editMeetingForm.start_time">
+                    </div>
+                    <div>
+                        <label>Длительность (минут):</label>
+                        <input type="number" x-model="editMeetingForm.duration_m">
+                    </div>
+                    <div x-show="selectedMeeting?.members?.length > 0">
+                        <label>Удалить участников:</label>
+                        <select multiple x-model="editMeetingForm.remove_member_ids">
+                            <template x-for="m in selectedMeeting.members" :key="m.id">
+                                <option :value="m.id" x-text="m.name || m.email"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Добавить участников:</label>
+                        <select multiple x-model="editMeetingForm.new_member_ids">
+                            <template x-for="m in availableMembersForMeeting" :key="m.id">
+                                <option :value="m.id" x-text="m.name || m.email"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <button @click="updateMeeting">Сохранить изменения</button>
+                    <button @click="cancelEditMeeting">Отмена</button>
+
+                    <div>
+                        <button @click="cancelMeeting">Отменить встречу</button>
+                    </div>
+                </div>
+
+                <button @click="selectedMeeting=null">Закрыть</button>
             </div>
         </div>
     </div>

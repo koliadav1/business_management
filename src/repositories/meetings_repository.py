@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy.orm import selectinload
 
 from src.models.users import User
@@ -89,15 +89,18 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
 
         query = (
             select(User.id)
+            .distinct()
             .where(User.id.in_(user_ids))
             .where(
                 User.meetings.any(
-                    Meeting.is_active,
-                    Meeting.start_time < end_time,
-                    Meeting.start_time
-                    + (Meeting.duration_m * func.text("interval '1 minute'"))
-                    > start_time,
-                    Meeting.id != exclude_meeting_id,
+                    and_(
+                        Meeting.is_active,
+                        Meeting.start_time < end_time,
+                        Meeting.start_time
+                        + (Meeting.duration_m * timedelta(minutes=1))
+                        > start_time,
+                        Meeting.id != exclude_meeting_id,
+                    )
                 )
             )
         )
@@ -109,7 +112,7 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
         """Отменить задачу"""
         meeting.is_active = False
         await self._session.flush()
-
+        await self._session.refresh(meeting)
         return meeting
 
     async def get_upcoming_meetings(
@@ -158,6 +161,8 @@ class MeetingsRepository(SQLRepository[Meeting], IMeetingsRepository):
             select(User).where(User.id.in_(user_ids))
         )
         new_members = result.scalars().all()
+
+        await self._session.refresh(meeting, attribute_names=["members"])
 
         for user in new_members:
             if user not in meeting.members:

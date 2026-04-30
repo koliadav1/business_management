@@ -97,7 +97,9 @@ class MeetingService:
         Только для admin или инициатора встречи
         """
         async with uow:
-            meeting = await uow.meetings_repo.get(meeting_id)
+            meeting = await uow.meetings_repo.get_meeting_with_members(
+                meeting_id
+            )
 
             if not meeting:
                 raise MeetingNotFoundError(
@@ -156,7 +158,7 @@ class MeetingService:
 
             cancelled_meeting = await uow.meetings_repo.cancel_meeting(meeting)
 
-        return cancelled_meeting
+            return cancelled_meeting
 
     async def get_meeting(
         self, meeting_id: int, current_user: User, uow: IUnitOfWork
@@ -166,7 +168,18 @@ class MeetingService:
         Только для членов команды
         """
         async with uow:
-            meeting = await uow.meetings_repo.get(meeting_id)
+            is_member = await uow.meetings_repo.is_member(
+                meeting_id, current_user.id
+            )
+
+            if not is_member and current_user.role != UserRole.ADMIN:
+                raise ForbiddenError(
+                    "Only meeting members and admin can view meeting"
+                )
+
+            meeting = await uow.meetings_repo.get_meeting_with_members(
+                meeting_id
+            )
 
             if not meeting:
                 raise MeetingNotFoundError(
@@ -177,16 +190,6 @@ class MeetingService:
                 raise ForbiddenError(
                     "You can only view meetings from your team"
                 )
-
-            is_member = await uow.meetings_repo.is_member(
-                meeting_id, current_user.id
-            )
-
-            if is_member or current_user.role == UserRole.ADMIN:
-                meeting = await uow.meetings_repo.get_meeting_with_members(
-                    meeting_id
-                )
-
         return meeting
 
     async def get_user_meetings(
