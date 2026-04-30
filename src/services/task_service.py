@@ -37,7 +37,7 @@ class TaskService:
 
             if (
                 executor.role == UserRole.MANAGER
-                and current_user.role == UserRole.Manager
+                and current_user.role == UserRole.MANAGER
             ):
                 raise ForbiddenError(
                     "Managers can't assign other managers to tasks"

@@ -35,6 +35,13 @@ function app() {
             new_member_ids: [],
             remove_member_ids: []
         },
+        // Календарь
+        calendarView: 'month', calendarFilter: 'my', selectedDate: new Date().toISOString().slice(0, 10),
+        currentMonth: new Date().getMonth(),
+        currentYear: new Date().getFullYear(),
+        calendarStatusFilter: 'all',
+        calendarMeetingFilter: 'all',
+        selectedCalendarEvent: null,
         // URL
         apiBase: 'http://localhost:8000',
 
@@ -55,6 +62,9 @@ function app() {
                     this.selectedMeeting = null;
                     this.editMeetingForm = { description: '', start_time: '', duration_m: 30, new_member_ids: [], remove_member_ids: [] };
                 }
+                if (newTab === 'calendar') {
+                    this.loadCalendarData();
+                }
             });
             this.$watch('rateTaskId', (id) => {
                 const item = this.rateableTasks.find(i => String(i.task.id) === String(id));
@@ -65,6 +75,12 @@ function app() {
                     this.rateValue = 5;
                     this.rateComment = '';
                 }
+            });
+            this.$watch('calendarStatusFilter', () => {
+                this.$forceUpdate();
+            });
+            this.$watch('calendarMeetingFilter', () => {
+                this.$forceUpdate();
             });
         },
         async fetchWithAuth(url, options = {}) {
@@ -126,6 +142,134 @@ function app() {
             await this.loadMyEvaluations();
             await this.loadRateableTasks();
             await this.loadMyMeetings(); await this.loadTeamMeetings();
+        },
+        // Календарь
+        async loadCalendarData() {
+            await this.loadMyTasks();
+            await this.loadTeamTasks();
+            await this.loadMyMeetings();
+            await this.loadTeamMeetings();
+            this.$forceUpdate();
+        },
+        openEventDetail(event) {
+            this.closeEvent()
+            this.calendarSelectedEvent = event;
+            if (event.type === 'Задача') {
+                const task = this.myTasks.find(t => t.id === event.id) || this.teamTasks.find(t => t.id === event.id);
+                if (task) {
+                    this.openTaskDetail(task);
+                }
+            } else if (event.type === 'Встреча') {
+                const meeting = this.myMeetings.find(m => m.id === event.id) || this.teamMeetings.find(m => m.id === event.id);
+                if (meeting) {
+                    this.openMeetingDetail(meeting);
+                }
+            }
+        },
+        resetCalendarFilters() {
+            this.calendarStatusFilter = 'all';
+            this.calendarMeetingFilter = 'all';
+        },
+        filterTasksByStatus(tasks) {
+            if (!tasks) return [];
+            if (this.calendarStatusFilter === 'all') return tasks;
+            return tasks.filter(task => task.status === this.calendarStatusFilter);
+        },
+        filterMeetingsByStatus(meetings) {
+            if (!meetings) return [];
+            if (this.calendarMeetingFilter === 'all') return meetings;
+            if (this.calendarMeetingFilter === 'active') {
+                return meetings.filter(meeting => meeting.is_active === true);
+            }
+            if (this.calendarMeetingFilter === 'cancelled') {
+                return meetings.filter(meeting => meeting.is_active === false);
+            }
+            return meetings;
+        },
+        getFilteredTasksForCalendar() {
+            let tasks = [];
+            if (this.calendarFilter === 'my') {
+                tasks = this.myTasks || [];
+            } else if (this.calendarFilter === 'team' && this.isAdminOrManager) {
+                tasks = this.teamTasks || [];
+            }
+            return this.filterTasksByStatus(tasks);
+        },
+        getFilteredMeetingsForCalendar() {
+            let meetings = [];
+            if (this.calendarFilter === 'my') {
+                meetings = this.myMeetings || [];
+            } else if (this.calendarFilter === 'team' && this.isAdminOrManager) {
+                meetings = this.teamMeetings || [];
+            }
+            return this.filterMeetingsByStatus(meetings);
+        },
+        getEventColor(event) {
+            if (event.type === 'Задача') {
+                if (event.status === 'done') return '#d4edda';
+                if (event.status === 'cancelled') return '#f8d7da';
+                return '#e8f4f8';
+            } else {
+                if (event.is_active === false) return '#f8d7da';
+                return '#d1ecf1';
+            }
+        },
+        getEventsByDay(day) {
+            let events = [];
+            const tasks = this.getFilteredTasksForCalendar();
+            tasks.forEach(task => {
+                if (task.deadline) {
+                    const taskDate = new Date(task.deadline).toISOString().slice(0, 10);
+                    if (taskDate === day) {
+                        events.push({
+                            type: 'Задача',
+                            title: task.description,
+                            date: task.deadline,
+                            status: task.status,
+                            id: task.id
+                        });
+                    }
+                }
+            });
+            const meetings = this.getFilteredMeetingsForCalendar();
+            meetings.forEach(meeting => {
+                if (meeting.start_time) {
+                    const meetingDate = new Date(meeting.start_time).toISOString().slice(0, 10);
+                    if (meetingDate === day) {
+                        events.push({
+                            type: 'Встреча',
+                            title: meeting.description,
+                            date: meeting.start_time,
+                            duration: meeting.duration_m,
+                            is_active: meeting.is_active,
+                            id: meeting.id
+                        });
+                    }
+                }
+            });
+            events.sort((a, b) => new Date(a.date) - new Date(b.date));
+            return events;
+        },
+        prevMonth() {
+            if (this.currentMonth === 0) {
+                this.currentMonth = 11;
+                this.currentYear--;
+            } else {
+                this.currentMonth--;
+            }
+        },
+        nextMonth() {
+            if (this.currentMonth === 11) {
+                this.currentMonth = 0;
+                this.currentYear++;
+            } else {
+                this.currentMonth++;
+            }
+        },
+        goToToday() {
+            this.currentYear = new Date().getFullYear();
+            this.currentMonth = new Date().getMonth();
+            this.selectedDate = new Date().toISOString().slice(0, 10);
         },
         // Встречи
         async loadMyMeetings() {
@@ -702,9 +846,13 @@ function app() {
                 calendar: 'Календарь'
             }[t];
         },
+        closeEvent() {
+            this.calendarSelectedEvent = null;
+            this.selectedTask = null;
+            this.selectedMeeting = null;
+        },
         get isTeamAdmin() { return this.currentUser?.role === 'admin' && this.currentUser?.team_id; },
         get isAdminOrManager() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
-        get canManage() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
         get isTaskExecutorAdminAuthor() { return this.selectedTask && (this.selectedTask.executor_id === this.currentUser?.id || this.currentUser?.role === 'admin' || this.selectedTask.author_id === this.currentUser?.id); },
         get isTaskAuthorOrAdmin() {
             return this.selectedTask && (this.selectedTask.author_id === this.currentUser?.id || this.currentUser?.role === 'admin');
@@ -724,6 +872,33 @@ function app() {
             if (!dateString) return '';
             const date = new Date(dateString);
             return date.toISOString().slice(0, 16);
+        },
+        get calendarWeeks() {
+            const year = this.currentYear;
+            const month = this.currentMonth;
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let firstDayIndex = new Date(year, month, 1).getDay();
+            firstDayIndex = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+            const weeks = [];
+            let currentWeek = [];
+            for (let i = 0; i < firstDayIndex; i++) {
+                currentWeek.push(null);
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                currentWeek.push(dateStr);
+                if (currentWeek.length === 7) {
+                    weeks.push([...currentWeek]);
+                    currentWeek = [];
+                }
+            }
+            if (currentWeek.length > 0) {
+                while (currentWeek.length < 7) {
+                    currentWeek.push(null);
+                }
+                weeks.push([...currentWeek]);
+            }
+            return weeks;
         },
     }
 }

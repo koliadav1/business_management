@@ -170,7 +170,7 @@
                             <select x-model="newTaskExecutorId">
                                 <option value="">Выберите исполнителя</option>
                                 <template
-                                    x-for="m in teamMembers.filter(m => {if (m.id === currentUser.id) return false;if (isTeamAdmin) return true;if (canManage) return m.role === 'employee';})"
+                                    x-for="m in teamMembers.filter(m => {if (m.id === currentUser.id) return false;if (isTeamAdmin) return true;if (isAdminOrManager) return m.role === 'employee';})"
                                     :key="m.id">
                                     <option :value="m.id" x-text="m.name || m.email"></option>
                                 </template>
@@ -236,7 +236,7 @@
                     </div>
                     <!-- Встречи -->
                     <div x-show="activeTab === 'meetings'">
-                        <div x-show="canManage">
+                        <div x-show="isAdminOrManager">
                             <h3>Создать встречу</h3>
                             <textarea placeholder="Описание" x-model="newMeetingDesc"></textarea>
                             <input type="datetime-local" x-model="newMeetingStart">
@@ -271,7 +271,122 @@
                             <button @click="loadTeamMeetings">Обновить</button>
                         </div>
                     </div>
-
+                    <!-- Календарь -->
+                    <div x-show="activeTab === 'calendar'">
+                        <div>
+                            <div>
+                                <button @click="prevMonth">◀</button>
+                                <span
+                                    x-text="new Date(currentYear, currentMonth).toLocaleString('ru', {month: 'long', year: 'numeric'})"></span>
+                                <button @click="nextMonth">▶</button>
+                                <button @click="goToToday">Сегодня</button>
+                            </div>
+                            <div>
+                                <button @click="calendarView = 'month'">Месяц</button>
+                                <button @click="calendarView = 'day'">День</button>
+                            </div>
+                            <div>
+                                <div>
+                                    <label>Источник: </label>
+                                    <select x-model="calendarFilter" @change="loadCalendarData">
+                                        <option value="my">Мои события</option>
+                                        <option value="team" :disabled="!isAdminOrManager">События команды</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Статус задач: </label>
+                                    <select x-model="calendarStatusFilter">
+                                        <option value="all">Все задачи</option>
+                                        <option value="new">Новые</option>
+                                        <option value="in_progress">В работе</option>
+                                        <option value="done">Выполненные</option>
+                                        <option value="cancelled">Отмененные</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Статус встреч: </label>
+                                    <select x-model="calendarMeetingFilter">
+                                        <option value="all">Все встречи</option>
+                                        <option value="active">Активные</option>
+                                        <option value="cancelled">Отмененные</option>
+                                    </select>
+                                </div>
+                                <button @click="resetCalendarFilters">Сбросить
+                                    фильтры</button>
+                            </div>
+                        </div>
+                        <!-- Месячный вид -->
+                        <div x-show="calendarView === 'month'">
+                            <h4>Месячный вид</h4>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th>Пн</th>
+                                        <th>Вт</th>
+                                        <th>Ср</th>
+                                        <th>Чт</th>
+                                        <th>Пт</th>
+                                        <th>Сб</th>
+                                        <th>Вс</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="week in calendarWeeks">
+                                        <tr>
+                                            <template x-for="day in week">
+                                                <td
+                                                    style="border: 1px solid #ccc; vertical-align: top; min-width: 100px; height: 80px;">
+                                                    <div><strong x-text="day ? new Date(day).getDate() : ''"></strong>
+                                                    </div>
+                                                    <div x-show="day" style="font-size: 11px; margin-top: 5px;">
+                                                        <template x-for="ev in getEventsByDay(day)">
+                                                            <div @click="openEventDetail(ev)"
+                                                                :style="'background: ' + getEventColor(ev) + '; cursor: pointer; margin: 2px 0; padding: 2px 4px; border-radius: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'">
+                                                                <span
+                                                                    x-text="ev.type === 'Задача' ? '📋' : '📅'"></span>
+                                                                <span
+                                                                    x-text="ev.title.length > 15 ? ev.title.slice(0,15)+'...' : ev.title"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Дневной вид -->
+                        <div x-show="calendarView === 'day'">
+                            <h4>Детали дня</h4>
+                            <input type="date" x-model="selectedDate" @change="loadCalendarData">
+                            <div>
+                                <h5>События на <span x-text="selectedDate"></span></h5>
+                                <div style="font-size: 12px; padding: 5px; background: #f0f0f0; margin-bottom: 10px;">
+                                    <b>Активные фильтры:</b>
+                                    <span x-show="calendarStatusFilter !== 'all'">Статус задач: <span
+                                            x-text="calendarStatusFilter"></span></span>
+                                    <span x-show="calendarMeetingFilter !== 'all'"> | Встречи: <span
+                                            x-text="calendarMeetingFilter === 'active' ? 'Активные' : 'Отмененные'"></span></span>
+                                    <span x-show="calendarStatusFilter === 'all' && calendarMeetingFilter === 'all'">Все
+                                        события</span>
+                                </div>
+                                <template x-for="ev in getEventsByDay(selectedDate)">
+                                    <div @click="openEventDetail(ev)"
+                                        :style="'padding: 10px; margin: 8px 0; background: ' + getEventColor(ev) + '; border-radius: 5px; cursor: pointer;'">
+                                        <b><span x-text="ev.type === 'Задача' ? '📋 Задача:' : '📅 Встреча:'"></span>
+                                            <span x-text="ev.title"></span></b>
+                                        <div><span x-text="new Date(ev.date).toLocaleString()"></span></div>
+                                        <div x-show="ev.status">Статус: <span x-text="ev.status"></span></div>
+                                        <div x-show="ev.duration">Длительность: <span x-text="ev.duration"></span> мин
+                                        </div>
+                                        <div x-show="ev.is_active === false">Встреча отменена</div>
+                                    </div>
+                                </template>
+                                <div x-show="getEventsByDay(selectedDate).length === 0">Нет событий на этот день</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -305,7 +420,6 @@
                         <option value="cancelled">cancelled</option>
                     </select>
                 </div>
-                <button @click="selectedTask=null">Закрыть</button>
             </div>
             <div x-show="isTaskAuthorOrAdmin">
                 <hr>
@@ -330,6 +444,7 @@
                 <button @click="updateTask">Сохранить изменения</button>
                 <button @click="cancelEditTask">Отмена</button>
             </div>
+            <button @click="closeEvent">Закрыть</button>
         </div>
         <!-- Детали встречи -->
         <div x-show="selectedMeeting" @click.self="selectedMeeting=null">
@@ -391,7 +506,7 @@
                     </div>
                 </div>
 
-                <button @click="selectedMeeting=null">Закрыть</button>
+                <button @click="closeEvent">Закрыть</button>
             </div>
         </div>
     </div>
