@@ -222,6 +222,54 @@
                                 <span x-text="isAlreadyRated ? 'Изменить оценку' : 'Поставить оценку'"></span>
                             </button>
                         </div>
+                        <div>
+                            <h3>Статистика оценок</h3>
+                            <!-- Фильтры статистики -->
+                            <div>
+                                <div x-show="isAdminOrManager">
+                                    <label>Пользователь:</label>
+                                    <select x-model="statsUserId" @change="loadRatingStats">
+                                        <option value="">Все пользователи</option>
+                                        <template x-for="member in teamMembers" :key="member.id">
+                                            <option :value="member.id" x-text="member.name || member.email"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Период:</label>
+                                    <input type="date" x-model="statsStartDate" @change="loadRatingStats">
+                                    <span> - </span>
+                                    <input type="date" x-model="statsEndDate" @change="loadRatingStats">
+                                    <button
+                                        @click="statsStartDate = ''; statsEndDate = ''; statsUserId = ''; loadRatingStats()">Сбросить</button>
+                                </div>
+                            </div>
+                            <!-- Отображение статистики -->
+                            <div x-show="!statsLoading && ratingStats">
+                                <div>
+                                    <div>
+                                        <div>Средняя оценка: <span x-text="averageRating"></span></div>
+                                    </div>
+                                    <div>
+                                        <div>Всего оценок: <span x-text="totalRatings"></span></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4>Распределение оценок</h4>
+                                    <template x-for="item in distributionArray" :key="item.rating">
+                                        <div>
+                                            <div>
+                                                <b x-text="item.rating + ' ★'"></b>
+                                            </div>
+                                            <div x-text="item.count"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div x-show="!statsLoading && !ratingStats">
+                                Нет данных для статистики
+                            </div>
+                        </div>
                         <div x-show="!isTeamAdmin">
                             <h3>Оценки (мои задачи)</h3>
                             <template x-for="ev in myEvaluations">

@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query
 
-from src.schemas.base import PaginatedRead
+from src.schemas.base import DateFilter, PaginatedRead
 from src.services.evaluation_service import EvaluationService
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.utils.dependencies import get_current_user, get_uow
@@ -128,11 +129,10 @@ async def get_evaluations_with_tasks(
     description="Возвращает среднюю оценку, количество и распределение",
 )
 async def get_stats(
+    date_filters: DateFilter = Depends(),
     user_id: int | None = Query(
         None, description="ID пользователя, только для admin и manager"
     ),
-    start_date: datetime | None = Query(None, description="Начало периода"),
-    end_date: datetime | None = Query(None, description="Конец периода"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: EvaluationService = Depends(),
@@ -147,8 +147,8 @@ async def get_stats(
         uow=uow,
         current_user=current_user,
         user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=date_filters.start_date,
+        end_date=date_filters.end_date,
     )
     return stats
 

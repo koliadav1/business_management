@@ -25,6 +25,11 @@ function app() {
         editTaskForm: { description: '', deadline: '', executor_id: '' },
         // Оценки
         myEvaluations: [], rateTaskId: '', rateValue: 5, rateComment: '', rateableTasks: [],
+        ratingStats: null,
+        statsStartDate: '',
+        statsEndDate: '',
+        statsUserId: '',
+        statsLoading: false,
         // Meetings
         myMeetings: [], myActiveMeetings: [], teamMeetings: [], newMeetingDesc: '', newMeetingStart: '', newMeetingDuration: 30, newMeetingMembers: [],
         selectedMeeting: null,
@@ -468,6 +473,57 @@ function app() {
                 await this.loadRateableTasks();
                 if (this.loadMyEvaluations) await this.loadMyEvaluations();
             }
+        },
+        async loadRatingStats() {
+            this.statsLoading = true;
+
+            try {
+                let url = '/evaluations/stats';
+                const params = [];
+                if (this.statsStartDate) {
+                    params.push(`start_date=${new Date(this.statsStartDate).toISOString()}`);
+                }
+                if (this.statsEndDate) {
+                    params.push(`end_date=${new Date(this.statsEndDate).toISOString()}`);
+                }
+                if (this.statsUserId && (this.currentUser?.role === 'admin' || this.currentUser?.role === 'manager')) {
+                    params.push(`user_id=${this.statsUserId}`);
+                }
+                if (params.length > 0) {
+                    url += '?' + params.join('&');
+                }
+                const res = await this.fetchWithAuth(url);
+                if (res.ok) {
+                    this.ratingStats = await res.json();
+                } else {
+                    this.ratingStats = null;
+                    console.error('Failed to load stats');
+                }
+            } catch (e) {
+                console.error('Error loading stats:', e);
+                this.ratingStats = null;
+            } finally {
+                this.statsLoading = false;
+            }
+        },
+        get averageRating() {
+            if (!this.ratingStats) return 0;
+            return this.ratingStats.average.toFixed(2);
+        },
+        get totalRatings() {
+            if (!this.ratingStats) return 0;
+            return this.ratingStats.total;
+        },
+        get distributionArray() {
+            if (!this.ratingStats || !this.ratingStats.distribution) return [];
+            return [1, 2, 3, 4, 5].map(rating => ({
+                rating: rating,
+                count: this.ratingStats.distribution[rating] || 0
+            }));
+        },
+        get maxDistributionCount() {
+            if (!this.distributionArray.length) return 1;
+            return Math.max(...this.distributionArray.map(d => d.count), 1);
         },
         // Задачи
         async createTask() {
