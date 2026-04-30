@@ -250,14 +250,14 @@
                         </div>
                         <div>
                             <h3>Мои запланированные встречи</h3>
-                            <template x-for="mt in myMeetings">
+                            <template x-for="mt in myActiveMeetings">
                                 <div @click="openMeetingDetail(mt)" style="cursor: pointer;">
                                     <b x-text="mt.description"></b>
                                     Начало: <span x-text="formatDate(mt.start_time)"></span>
                                     (<span x-text="mt.duration_m"></span> мин)
                                 </div>
                             </template>
-                            <button @click="loadMyMeetings">Обновить</button>
+                            <button @click="loadMyActiveMeetings">Обновить</button>
                         </div>
                         <div>
                             <h3>Встречи команды</h3>
@@ -411,7 +411,7 @@
                     <textarea placeholder="Новый комментарий" x-model="newCommentText"></textarea>
                     <button @click="addCommentToTask">Отправить</button>
                 </div>
-                <div x-show="isTaskExecutorAdminAuthor">
+                <div x-show="isTaskExecutorAdminAuthor && !(selectedTask.status === 'cancelled')">
                     <b>Изменить статус:</b>
                     <select x-model="selectedTask.status" @change="updateTaskStatus">
                         <option value="new">new</option>

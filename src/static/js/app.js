@@ -26,7 +26,7 @@ function app() {
         // Оценки
         myEvaluations: [], rateTaskId: '', rateValue: 5, rateComment: '', rateableTasks: [],
         // Meetings
-        myMeetings: [], teamMeetings: [], newMeetingDesc: '', newMeetingStart: '', newMeetingDuration: 30, newMeetingMembers: [],
+        myMeetings: [], myActiveMeetings: [], teamMeetings: [], newMeetingDesc: '', newMeetingStart: '', newMeetingDuration: 30, newMeetingMembers: [],
         selectedMeeting: null,
         editMeetingForm: {
             description: '',
@@ -142,12 +142,14 @@ function app() {
             await this.loadMyEvaluations();
             await this.loadRateableTasks();
             await this.loadMyMeetings(); await this.loadTeamMeetings();
+            this.loadMyActiveMeetings();
         },
         // Календарь
         async loadCalendarData() {
             await this.loadMyTasks();
             await this.loadTeamTasks();
             await this.loadMyMeetings();
+            this.loadMyActiveMeetings();
             await this.loadTeamMeetings();
             this.$forceUpdate();
         },
@@ -273,11 +275,14 @@ function app() {
         },
         // Встречи
         async loadMyMeetings() {
-            const res = await this.fetchWithAuth('/meetings/?include_finished=false');
+            const res = await this.fetchWithAuth('/meetings/?include_cancelled=true');
             if (res.ok) this.myMeetings = await res.json();
         },
+        loadMyActiveMeetings() {
+            this.myActiveMeetings = this.myMeetings.filter(meeting => meeting.is_active === true)
+        },
         async loadTeamMeetings() {
-            const res = await this.fetchWithAuth('/meetings/team');
+            const res = await this.fetchWithAuth('/meetings/team?include_cancelled=true');
             if (res.ok) this.teamMeetings = await res.json();
         },
         async createMeeting() {
@@ -288,7 +293,7 @@ function app() {
                 member_ids: this.newMeetingMembers.map(Number)
             };
             const res = await this.fetchWithAuth('/meetings/', { method: 'POST', body: JSON.stringify(body) });
-            if (res.ok) { alert('Встреча создана'); this.loadMyMeetings(); this.loadTeamMeetings(); }
+            if (res.ok) { alert('Встреча создана'); this.loadMyMeetings(); this.loadTeamMeetings(); this.loadMyActiveMeetings(); }
             else {
                 const errorData = await res.json();
                 const errorMessage = errorData.detail?.[0]?.msg || 'Ошибка сервера';
@@ -374,6 +379,7 @@ function app() {
                         alert('Встреча обновлена');
                         await this.openMeetingDetail(this.selectedMeeting);
                         await this.loadMyMeetings();
+                        this.loadMyActiveMeetings();
                         await this.loadTeamMeetings();
                     } else {
                         const error = await res.json();
@@ -386,6 +392,7 @@ function app() {
             } else {
                 await this.openMeetingDetail(this.selectedMeeting);
                 await this.loadMyMeetings();
+                this.loadMyActiveMeetings();
                 await this.loadTeamMeetings();
             }
         },
@@ -399,6 +406,7 @@ function app() {
                     alert('Встреча отменена');
                     await this.openMeetingDetail(this.selectedMeeting);
                     await this.loadMyMeetings();
+                    this.loadMyActiveMeetings();
                     await this.loadTeamMeetings();
                     this.selectedMeeting = null;
                 } else {
@@ -855,7 +863,9 @@ function app() {
         get isAdminOrManager() { return this.currentUser && (this.currentUser.role === 'admin' || this.currentUser.role === 'manager'); },
         get isTaskExecutorAdminAuthor() { return this.selectedTask && (this.selectedTask.executor_id === this.currentUser?.id || this.currentUser?.role === 'admin' || this.selectedTask.author_id === this.currentUser?.id); },
         get isTaskAuthorOrAdmin() {
-            return this.selectedTask && (this.selectedTask.author_id === this.currentUser?.id || this.currentUser?.role === 'admin');
+            if (!this.selectedTask) return false;
+            if (this.secelctedTask.status === 'cancelled') return false;
+            return (this.selectedTask.author_id === this.currentUser?.id || this.currentUser?.role === 'admin');
         },
         get canManageMeeting() {
             if (!this.selectedMeeting) return false;
