@@ -47,6 +47,14 @@ function app() {
         calendarStatusFilter: 'all',
         calendarMeetingFilter: 'all',
         selectedCalendarEvent: null,
+        // Пагинация
+        pagination: {
+            myTasks: { page: 1, total: 0, pageSize: 10, items: [] },
+            teamTasks: { page: 1, total: 0, pageSize: 10, items: [] },
+            myEvaluations: { page: 1, total: 0, pageSize: 10, items: [] },
+            rateableTasks: { page: 1, total: 0, pageSize: 10, items: [] },
+            allTeams: { page: 1, total: 0, pageSize: 10, items: [] }
+        },
         // URL
         apiBase: 'http://localhost:8000',
 
@@ -434,17 +442,33 @@ function app() {
         },
         // Оценки
         async loadMyEvaluations() {
-            const res = await this.fetchWithAuth('/evaluations/with-tasks?limit=100');
-            if (res.ok) this.myEvaluations = (await res.json()).items;
+            try {
+                const page = this.pagination.myEvaluations.page;
+                const limit = this.pagination.myEvaluations.pageSize;
+                const res = await this.fetchWithAuth(`/evaluations/with-tasks?page=${page}&limit=${limit}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.updatePagination('myEvaluations', data);
+                    this.myEvaluations = data.items;
+                }
+            } catch (e) {
+                console.error(e);
+            }
         },
         async loadRateableTasks() {
             if (!this.isAdminOrManager) return;
-
             try {
-                const res = await this.fetchWithAuth('/tasks/done?limit=100');
+                const page = this.pagination.rateableTasks.page;
+                const limit = this.pagination.rateableTasks.pageSize;
+                const res = await this.fetchWithAuth(`/tasks/team?page=${page}&limit=${limit}&status=done`);
                 if (res.ok) {
                     const data = await res.json();
-                    this.rateableTasks = data.items;
+                    this.updatePagination('rateableTasks', data);
+                    // Фильтруем по правам
+                    this.rateableTasks = data.items.filter(task => {
+                        if (this.currentUser?.role === 'admin') return true;
+                        return task.author_id === this.currentUser?.id;
+                    });
                 } else {
                     this.rateableTasks = [];
                 }
@@ -545,16 +569,32 @@ function app() {
         },
         async loadMyTasks() {
             try {
-                const res = await this.fetchWithAuth('/tasks/?limit=100');
-                if (res.ok) this.myTasks = (await res.json()).items;
-            } catch (e) { }
+                const page = this.pagination.myTasks.page;
+                const limit = this.pagination.myTasks.pageSize;
+                const res = await this.fetchWithAuth(`/tasks/?page=${page}&limit=${limit}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.updatePagination('myTasks', data);
+                    this.myTasks = data.items;
+                }
+            } catch (e) {
+                console.error(e);
+            }
         },
         async loadTeamTasks() {
             if (!this.isAdminOrManager) return;
             try {
-                const res = await this.fetchWithAuth('/tasks/team?limit=100');
-                if (res.ok) this.teamTasks = (await res.json()).items;
-            } catch (e) { }
+                const page = this.pagination.teamTasks.page;
+                const limit = this.pagination.teamTasks.pageSize;
+                const res = await this.fetchWithAuth(`/tasks/team?page=${page}&limit=${limit}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    this.updatePagination('teamTasks', data);
+                    this.teamTasks = data.items;
+                }
+            } catch (e) {
+                console.error(e);
+            }
         },
         async openTaskDetail(task) {
             const res = await this.fetchWithAuth(`/tasks/${task.id}`);
@@ -649,9 +689,12 @@ function app() {
         // Команды
         async loadAllTeams() {
             try {
-                const res = await this.fetchWithAuth('/teams/?limit=100');
+                const page = this.pagination.allTeams.page;
+                const limit = this.pagination.allTeams.pageSize;
+                const res = await this.fetchWithAuth(`/teams/?page=${page}&limit=${limit}`);
                 if (res.ok) {
                     const data = await res.json();
+                    this.updatePagination('allTeams', data);
                     this.allTeams = data.items;
                 } else {
                     this.allTeams = [];
@@ -898,6 +941,95 @@ function app() {
             this.loginEmail = this.regEmail;
             this.loginPassword = this.regPassword;
             await this.login();
+        },
+        // Пагинация
+        updatePagination(listName, data) {
+            if (this.pagination[listName]) {
+                this.pagination[listName].items = data.items;
+                this.pagination[listName].total = data.total;
+                this.pagination[listName].page = data.page;
+                this.pagination[listName].pageSize = data.page_size;
+            }
+        },
+        changePage(listName, newPage) {
+            if (newPage < 1) newPage = 1;
+            const totalPages = Math.ceil(this.pagination[listName].total / this.pagination[listName].pageSize);
+            if (newPage > totalPages) newPage = totalPages;
+            if (newPage === this.pagination[listName].page) return;
+            this.pagination[listName].page = newPage;
+            switch (listName) {
+                case 'myTasks':
+                    this.loadMyTasks();
+                    break;
+                case 'teamTasks':
+                    this.loadTeamTasks();
+                    break;
+                case 'myEvaluations':
+                    this.loadMyEvaluations();
+                    break;
+                case 'rateableTasks':
+                    this.loadRateableTasks();
+                    break;
+                case 'allTeams':
+                    this.loadAllTeams();
+                    break;
+            }
+        },
+        changePageSize(listName, newSize) {
+            this.pagination[listName].pageSize = newSize;
+            this.pagination[listName].page = 1;
+            this.changePage(listName, 1);
+        },
+        getPageNumbers(listName) {
+            const total = this.pagination[listName].total;
+            const pageSize = this.pagination[listName].pageSize;
+            const currentPage = this.pagination[listName].page;
+            if (total === 0) return [];
+            const totalPages = Math.ceil(total / pageSize);
+            const pages = [];
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else {
+                if (currentPage <= 4) {
+                    for (let i = 1; i <= 5; i++) pages.push(i);
+                    pages.push('...');
+                    pages.push(totalPages);
+                } else if (currentPage >= totalPages - 3) {
+                    pages.push(1);
+                    pages.push('...');
+                    for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                } else {
+                    pages.push(1);
+                    pages.push('...');
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                    pages.push('...');
+                    pages.push(totalPages);
+                }
+            }
+            return pages;
+        },
+        getPaginationHtml(listName) {
+            const pages = this.getPageNumbers(listName);
+            const currentPage = this.pagination[listName].page;
+            const totalPages = Math.ceil(this.pagination[listName].total / this.pagination[listName].pageSize);
+            let html = '<div>';
+            html += `<button @click="changePage('${listName}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>←</button>`;
+            for (const page of pages) {
+                if (page === '...') {
+                    html += `<button disabled>...</button>`;
+                } else {
+                    html += `<button @click="changePage('${listName}', ${page})">${page}</button>`;
+                }
+            }
+            html += `<button @click="changePage('${listName}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}">→</button>`;
+            html += `<select @change="changePageSize('${listName}', parseInt($event.target.value))">`;
+            html += `<option value="10" ${this.pagination[listName].pageSize === 10 ? 'selected' : ''}>10</option>`;
+            html += `<option value="20" ${this.pagination[listName].pageSize === 20 ? 'selected' : ''}>20</option>`;
+            html += `<option value="50" ${this.pagination[listName].pageSize === 50 ? 'selected' : ''}>50</option>`;
+            html += `</select></div>`;
+            html += `<div>`;
+            html += `Показано ${this.pagination[listName].items.length} из ${this.pagination[listName].total}</div>`;
+            return html;
         },
         // Вспомогательное
         tabLabel(t) {

@@ -10,6 +10,38 @@
 </head>
 
 <body>
+    <!-- Пагинация -->
+    <template id="pagination-template">
+        <div>
+            <button @click="changePage(listName, pagination[listName].page - 1)"
+                :disabled="pagination[listName].page === 1">
+                ←
+            </button>
+            <template x-for="page in getPageNumbers(listName)" :key="page">
+                <button x-if="page === '...'">
+                    ...
+                </button>
+                <button x-if="page !== '...'" @click="changePage(listName, page)"
+                    :class="pagination[listName].page === page ? 'active-page' : ''">
+                    <span x-text="page"></span>
+                </button>
+            </template>
+            <button @click="changePage(listName, pagination[listName].page + 1)"
+                :disabled="pagination[listName].page * pagination[listName].pageSize >= pagination[listName].total">
+                →
+            </button>
+            <select @change="changePageSize(listName, parseInt($event.target.value))">
+                <option :value="10" :selected="pagination[listName].pageSize === 10">10</option>
+                <option :value="20" :selected="pagination[listName].pageSize === 20">20</option>
+                <option :value="50" :selected="pagination[listName].pageSize === 50">50</option>
+            </select>
+        </div>
+        <div>
+            Показано <span x-text="pagination[listName].items.length"></span> из <span
+                x-text="pagination[listName].total"></span>
+        </div>
+    </template>
+    <!-- Основной дизайн -->
     <div x-data="app()" x-init="initApp">
         <div>
             <!-- Вход/Регистрация -->
@@ -38,7 +70,6 @@
                     <button @click="register">Зарегистрироваться</button>
                 </div>
             </div>
-            <!-- При входе -->
             <div x-show="token">
                 <div>
                     <template x-for="tab in ['profile', 'teams', 'tasks', 'meetings', 'ratings', 'calendar']">
@@ -103,11 +134,16 @@
                                 <h3>Все команды (<span x-text="allTeams.length"></span>)</h3>
                                 <template x-for="team in allTeams">
                                     <div>
-                                        <strong x-text="team.name"></strong>
-                                        <span x-text="team.description"></span>
+                                        <div><b x-text="team.name"></b></div>
+                                        <div x-text="team.description"></div>
                                     </div>
                                 </template>
-                                <div x-show="allTeams.length === 0">Нет доступных команд</div>
+                                <template x-if="allTeams.length === 0">Нет доступных команд</template>
+                                <template x-if="(allTeams.length === 0)">
+                                    <div x-data="{listName: 'allTeams'}">
+                                        <div x-html="getPaginationHtml(listName)"></div>
+                                    </div>
+                                </template>
                                 <button @click="loadAllTeams">Обновить список</button>
                             </div>
                         </div>
@@ -181,9 +217,15 @@
                             <h3>Мои задачи</h3>
                             <template x-for="task in myTasks">
                                 <div @click="openTaskDetail(task)" style="cursor: pointer;">
-                                    Задача: <span><b x-text="task.description"></b></span>
-                                    <strong>Статус:</strong> <span x-text="task.status"></span>
-                                    <strong>Дедлайн:</strong> <span x-text="formatDate(task.deadline)"> </span>
+                                    <div><b x-text=" task.description"></b></div>
+                                    <div>Статус: <span x-text="task.status"></span> | Дедлайн: <span
+                                            x-text="formatDate(task.deadline)"></span></div>
+                                </div>
+                            </template>
+                            <template x-if="myTasks.length === 0">Нет задач</template>
+                            <template x-if="!(myTasks.length === 0)">
+                                <div x-data="{listName: 'myTasks'}">
+                                    <div x-html="getPaginationHtml(listName)"></div>
                                 </div>
                             </template>
                             <button @click="loadMyTasks">Обновить</button>
@@ -192,13 +234,20 @@
                             <h3>Задачи команды</h3>
                             <template x-for="task in teamTasks">
                                 <div @click="openTaskDetail(task)" style="cursor: pointer;">
-                                    Задача: <span><b x-text=" task.description"></b> (исп:
-                                        <span x-text="task.executor_id"></span>)
-                                    </span>
-                                    <strong>Статус:</strong> <span x-text="task.status"></span>
-                                    <strong>Дедлайн:</strong> <span x-text="formatDate(task.deadline)"> </span>
+                                    <div><b x-text="task.description"></b> (исполнитель: <span
+                                            x-text="task.executor_id"></span>)</div>
+                                    <div>Статус: <span x-text="task.status"></span> | Дедлайн: <span
+                                            x-text="formatDate(task.deadline)"></span></div>
                                 </div>
                             </template>
+
+                            <template x-if="teamTasks.length === 0">Нет задач</template>
+                            <template x-if="!(teamTasks.length === 0)">
+                                <div x-data="{listName: 'teamTasks'}">
+                                    <div x-html="getPaginationHtml(listName)"></div>
+                                </div>
+                            </template>
+
                             <button @click="loadTeamTasks">Обновить</button>
                         </div>
                     </div>
@@ -273,10 +322,17 @@
                         <div x-show="!isTeamAdmin">
                             <h3>Оценки (мои задачи)</h3>
                             <template x-for="ev in myEvaluations">
-                                <div><b>Задача <span x-text="ev.task?.id"></b></span>: <span
-                                        x-text="ev.task?.description"></span>
-                                    <div>Оценка: <span x-text="ev.evaluation?.rating">/5</span></div>
-                                    <div>Комментарий: <span x-text="ev.evaluation?.comment"></span></div>
+                                <div>
+                                    <div><b>Задача:</b> <span x-text="ev.task?.description"></span></div>
+                                    <div><b>Оценка:</b> <span x-text="ev.evaluation?.rating"></span>/5</div>
+                                    <div x-show="ev.evaluation?.comment"><b>Комментарий:</b> <span
+                                            x-text="ev.evaluation?.comment"></span></div>
+                                </div>
+                            </template>
+                            <template x-if="myEvaluations.length === 0">Нет оценок</template>
+                            <template x-if="!(myEvaluations.length === 0)">
+                                <div x-data="{listName: 'myEvaluations'}">
+                                    <div x-html="getPaginationHtml(listName)"></div>
                                 </div>
                             </template>
                             <button @click="loadMyEvaluations">Обновить</button>
