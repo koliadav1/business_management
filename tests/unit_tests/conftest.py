@@ -4,8 +4,9 @@ import pytest_asyncio
 
 from src.models.evaluations import Evaluation
 from src.models.meetings import Meeting
-from src.models.tasks import Task, TaskStatus
+from src.models.tasks import Comment, Task, TaskStatus
 from src.models.users import User, UserRole
+from src.services.comment_service import CommentService
 from src.services.evaluation_service import EvaluationService
 from src.services.meeting_service import MeetingService
 from src.services.task_service import TaskService
@@ -50,6 +51,11 @@ def evaluation_service():
 @pytest_asyncio.fixture
 def meeting_service():
     return MeetingService()
+
+
+@pytest_asyncio.fixture
+def comment_service():
+    return CommentService()
 
 
 @pytest_asyncio.fixture
@@ -210,3 +216,14 @@ def mock_cancelled_meeting(admin_user, mocker):
     meeting.members = [admin_user]
 
     return meeting
+
+
+@pytest_asyncio.fixture
+def mock_comment(admin_user, mock_task, mocker):
+    comment = mocker.MagicMock(spec=Comment)
+    comment.id = 1000
+    comment.content = "Test comm"
+    comment.task_id = mock_task.team_id
+    comment.author_id = admin_user.id
+
+    return comment
