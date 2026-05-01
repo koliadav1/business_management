@@ -2,8 +2,10 @@ from datetime import datetime, timezone
 
 import pytest_asyncio
 
+from src.models.evaluations import Evaluation
 from src.models.tasks import Task, TaskStatus
 from src.models.users import User, UserRole
+from src.services.evaluation_service import EvaluationService
 from src.services.task_service import TaskService
 from src.services.team_service import TeamService
 
@@ -36,6 +38,11 @@ def team_service():
 @pytest_asyncio.fixture
 def task_service():
     return TaskService()
+
+
+@pytest_asyncio.fixture
+def evaluation_service():
+    return EvaluationService()
 
 
 @pytest_asyncio.fixture
@@ -125,3 +132,32 @@ def mock_task(manager_user, employee_user, mocker):
     task.evaluation = None
 
     return task
+
+
+@pytest_asyncio.fixture
+def mock_task_done(manager_user, employee_user, mocker):
+    task = mocker.MagicMock(spec=Task)
+    task.id = 100
+    task.description = "Test"
+    task.deadline = datetime.now(timezone.utc)
+    task.executor_id = employee_user.id
+    task.author_id = manager_user.id
+    task.team_id = manager_user.team_id
+    task.status = TaskStatus.DONE
+    task.completed_at = None
+    task.comments = None
+    task.evaluation = None
+
+    return task
+
+
+@pytest_asyncio.fixture
+def mock_evaluation(mock_task_done, manager_user, mocker):
+    evaluation = mocker.MagicMock(spec=Evaluation)
+    evaluation.id = 1000
+    evaluation.comment = "Test comm"
+    evaluation.task_id = mock_task_done.id
+    evaluation.rating = 5
+    evaluation.rater_id = manager_user.id
+
+    return evaluation
