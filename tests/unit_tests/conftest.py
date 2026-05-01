@@ -1,11 +1,13 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest_asyncio
 
 from src.models.evaluations import Evaluation
+from src.models.meetings import Meeting
 from src.models.tasks import Task, TaskStatus
 from src.models.users import User, UserRole
 from src.services.evaluation_service import EvaluationService
+from src.services.meeting_service import MeetingService
 from src.services.task_service import TaskService
 from src.services.team_service import TeamService
 
@@ -43,6 +45,11 @@ def task_service():
 @pytest_asyncio.fixture
 def evaluation_service():
     return EvaluationService()
+
+
+@pytest_asyncio.fixture
+def meeting_service():
+    return MeetingService()
 
 
 @pytest_asyncio.fixture
@@ -161,3 +168,45 @@ def mock_evaluation(mock_task_done, manager_user, mocker):
     evaluation.rater_id = manager_user.id
 
     return evaluation
+
+
+@pytest_asyncio.fixture
+def mock_future_meeting(admin_user, mocker):
+    meeting = mocker.MagicMock(spec=Meeting)
+    meeting.id = 100
+    meeting.description = "Test"
+    meeting.start_time = datetime.now(timezone.utc) + timedelta(days=1)
+    meeting.duration_m = 60
+    meeting.initiatior_id = admin_user.id
+    meeting.team_id = admin_user.team_id
+    meeting.is_active = True
+    meeting.members = [admin_user]
+
+    return meeting
+
+
+@pytest_asyncio.fixture
+def mock_past_meeting(admin_user, mocker):
+    meeting = mocker.MagicMock(spec=Meeting)
+    meeting.id = 101
+    meeting.description = "Test"
+    meeting.start_time = datetime.now(timezone.utc) - timedelta(days=1)
+    meeting.duration_m = 60
+    meeting.initiatior_id = admin_user.id
+    meeting.team_id = admin_user.team_id
+    meeting.is_active = True
+    meeting.members = [admin_user]
+
+    return meeting
+
+
+@pytest_asyncio.fixture
+def mock_cancelled_meeting(admin_user, mocker):
+    meeting = mocker.MagicMock(spec=Meeting)
+    meeting.id = 102
+    meeting.initiatior_id = admin_user.id
+    meeting.team_id = admin_user.team_id
+    meeting.is_active = False
+    meeting.members = [admin_user]
+
+    return meeting
