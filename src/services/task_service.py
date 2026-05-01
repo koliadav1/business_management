@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import List
 
+from src.models.evaluations import Evaluation
+
 from .dependencies import CheckTeamLogic
 from src.core.exceptions import (
     ForbiddenError,
@@ -35,7 +37,7 @@ class TaskService:
 
             if (
                 executor.role == UserRole.MANAGER
-                and current_user.role == UserRole.Manager
+                and current_user.role == UserRole.MANAGER
             ):
                 raise ForbiddenError(
                     "Managers can't assign other managers to tasks"
@@ -82,7 +84,7 @@ class TaskService:
                 )
 
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
@@ -113,11 +115,16 @@ class TaskService:
                 )
 
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
                     "Only admins and task authors can manage task"
+                )
+
+            if task.status in [TaskStatus.CANCELLED, TaskStatus.DONE]:
+                raise ForbiddenError(
+                    "You can't update cancelled or done tasks"
                 )
 
             if description:
@@ -147,7 +154,7 @@ class TaskService:
                 )
 
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
             if not self._can_manage_task(task, current_user):
                 raise ForbiddenError(
                     "Only admins and task authors can manage task"
@@ -169,7 +176,7 @@ class TaskService:
         """
         async with uow:
             task = await uow.tasks_repo.get(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
             if not self._can_change_status(task, new_status, current_user):
                 raise ForbiddenError(
                     f"User {current_user.role.value} can't change status from "
@@ -207,7 +214,7 @@ class TaskService:
         """
         async with uow:
             task = await uow.tasks_repo.get_task_with_comments(task_id)
-            CheckTeamLogic.check_task_team(current_user, task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if current_user.id == task.executor_id or current_user.role in [
                 UserRole.ADMIN,
@@ -358,6 +365,41 @@ class TaskService:
             tasks, total = await uow.tasks_repo.get_overdue_for_team(
                 current_user.team_id, skip, limit
             )
+        return {
+            "items": tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
+
+    async def get_done_tasks_with_evaluations(
+        self,
+        uow: IUnitOfWork,
+        current_user: User,
+        page: int,
+        limit: int,
+    ) -> List[tuple[Task, Evaluation]]:
+        """
+        Получить все сделанные задачи команды с соответствующими оценками.
+        Только для admin и manager
+        """
+        async with uow:
+            skip = (page - 1) * limit
+            if current_user.team_id is None:
+                raise ForbiddenError("You are not in the team")
+
+            if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+                raise ForbiddenError(
+                    "Only admins and managers "
+                    "can view other user's evaluations"
+                )
+
+            tasks, total = (
+                await uow.evaluations_repo.get_done_tasks_with_evaluations(
+                    current_user.team_id, skip, limit
+                )
+            )
+
         return {
             "items": tasks,
             "total": total,

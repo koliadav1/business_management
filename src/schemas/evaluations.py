@@ -32,7 +32,7 @@ class EvaluationRead(EvaluationBase):
 
 
 class EvaluationWithTaskRead(BaseModel):
-    evaluation: EvaluationRead
+    evaluation: EvaluationRead | None
     task: TaskRead
 
 

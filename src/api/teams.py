@@ -210,7 +210,10 @@ async def remove_self(
     uow: IUnitOfWork = Depends(get_uow),
     service: TeamService = Depends(),
 ):
-    """Удаление себя из команды"""
+    """
+    Удаление себя из команды.
+    Не для admin
+    """
     await service.quit_team(
         uow=uow,
         current_user=current_user,

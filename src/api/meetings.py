@@ -139,7 +139,7 @@ async def get_upcoming_meetings(
 
 
 @router.get(
-    "/{meeeting_id}",
+    "/{meeting_id}",
     response_model=MeetingDetailRead,
     summary="Получение встречи и ее участников",
     description="Возвращает подробную информацию о встрече",
@@ -153,7 +153,6 @@ async def get_meeting(
     """
     Получение информации о встречи.
     Участники встречи и admin получают встречу со списком ее участников
-    Остальные получают только информацию о встрече
     """
     meeting = await service.get_meeting(
         meeting_id=meeting_id, current_user=current_user, uow=uow

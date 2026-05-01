@@ -128,4 +128,4 @@ class TasksRepository(SQLRepository[Task], ITasksRepository):
             .where(Task.id == task_id)
             .options(joinedload(Task.comments).joinedload(Comment.author))
         )
-        return result.scalar_one_or_none()
+        return result.unique().scalar_one_or_none()

@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI
 from contextlib import asynccontextmanager
-
 from fastapi.security import HTTPBearer
+from fastapi.staticfiles import StaticFiles
 
 from src.core.exceptions import register_exception_handlers
 from src.schemas.users import UserCreate, UserRead, UserUpdate
@@ -59,3 +59,6 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
+
+
+app.mount("/", StaticFiles(directory="src/static", html=True), name="static")

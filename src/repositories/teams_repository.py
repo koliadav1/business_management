@@ -59,7 +59,7 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         Являются ли пользователи членами команды
         с дополнительной проверкой по роли
         """
-        query = select(User).where(
+        query = select(User.id).where(
             User.id.in_(user_ids), User.team_id == team_id
         )
         if user_role:

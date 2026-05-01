@@ -23,3 +23,10 @@ class UsersRepository(IUsersRepository):
         """Изменить роль пользователя"""
         user.role = new_role
         await self._session.flush()
+
+    async def get_by_email(self, email: str) -> User | None:
+        """Получить пользователя по почте"""
+        result = await self._session.execute(
+            select(User).where(User.email == email)
+        )
+        return result.scalar_one_or_none()
