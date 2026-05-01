@@ -77,7 +77,7 @@ class TaskService:
 
             if (
                 executor.role == UserRole.MANAGER
-                and current_user.role == UserRole.Manager
+                and current_user.role == UserRole.MANAGER
             ):
                 raise ForbiddenError(
                     "Managers can't assign other managers to tasks"
@@ -99,10 +99,10 @@ class TaskService:
     async def update_task(
         self,
         task_id: int,
-        description: str | None,
-        deadline: datetime | None,
         current_user: User,
         uow: IUnitOfWork,
+        description: str | None = None,
+        deadline: datetime | None = None,
     ) -> Task:
         """
         Изменение описания и дедлайна задачи.
