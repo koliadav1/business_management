@@ -21,6 +21,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "black==26.3.1",
+    "pytest>=9.0.0",
+    "pytest-cov==7.1.0",
+    "pytest-asyncio==1.3.0",
 ]
 
 [build-system]
@@ -33,3 +36,34 @@ force-exclude = "migrations"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+omit = [
+    "tests/*", 
+    "venv/*", 
+    "migrations/*", 
+    "src/static/*", 
+    "src/core/config.py",
+    "src/core/database.py",
+    "src/core/interfaces/*",
+    "src/utils/dependencies.py", 
+    "src/main.py",
+    "src/schemas/*",
+    "src/models/*",
+    "src/admin/*",
+    "src/services/user_manager.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "class .*\\(Exception\\):",
+    "**/__init__.py",
+    "pass",
+]
