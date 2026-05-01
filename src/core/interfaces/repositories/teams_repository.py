@@ -35,6 +35,11 @@ class ITeamsRepository(IRepository[Team]):
         pass
 
     @abstractmethod
+    async def remove_all_members(self, team_id: int) -> None:
+        """Убрать всех пользователей из команды"""
+        pass
+
+    @abstractmethod
     async def is_members(
         self,
         team_id: int,

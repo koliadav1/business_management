@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.users import User, UserRole
@@ -38,16 +38,27 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         user_role: UserRole = UserRole.EMPLOYEE,
     ) -> None:
         """Добавить пользователя в команду"""
-        user.team_id = team.id
-        user.role = user_role
+        cur_user = await self._session.merge(user)
+        cur_user.team_id = team.id
+        cur_user.role = user_role
         await self._session.flush()
 
     async def remove_member(self, user: User) -> None:
         """Убрать пользователя из команды"""
-        user.team_id = None
-        user.role = UserRole.USER
+        cur_user = await self._session.merge(user)
+        cur_user.team_id = None
+        cur_user.role = UserRole.USER
 
         await self._session.flush()
+
+    async def remove_all_members(self, team_id: int) -> None:
+        """Убрать всех пользователей из команды"""
+        query = (
+            update(User)
+            .where(User.team_id == team_id)
+            .values(team_id=None, role=UserRole.USER)
+        )
+        await self._session.execute(query)
 
     async def is_members(
         self,
