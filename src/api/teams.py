@@ -34,7 +34,7 @@ async def create_team(
 ):
     """
     Создание новой команды.
-    Только для admin
+    При создании команды user становится admin
     """
     team = await service.create_team(
         uow=uow,

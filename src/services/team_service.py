@@ -29,7 +29,6 @@ class TeamService:
         async with uow:
             if current_user.team_id is not None:
                 raise UserAlreadyInTeamError("You're already in team")
-
             existing_team = await uow.teams_repo.get_by_name(name)
             if existing_team:
                 raise TeamAlreadyExistsError(
@@ -47,7 +46,6 @@ class TeamService:
                 name=name, description=description, invite_code=invite_code
             )
             created_team = await uow.teams_repo.add(team)
-
             await uow.teams_repo.add_member(
                 created_team, current_user, UserRole.ADMIN
             )
