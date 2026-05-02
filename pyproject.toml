@@ -64,13 +64,14 @@ omit = [
     "src/schemas/*",
     "src/models/*",
     "src/admin/*",
-    "src/services/user_manager.py",
+    "src/repositories/unit_of_work.py",
     "*/__init__.py",
 ]
+branch = true
+concurrency = ["greenlet"]
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "class .*\\(Exception\\):",
-    "pass",
 ]
