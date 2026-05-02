@@ -1,7 +1,5 @@
 import pytest
 
-from src.models.users import UserRole
-
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestTeamAPI:

@@ -6,6 +6,7 @@ os.environ["POSTGRES_DB"] = "db_test"
 os.environ["POSTGRES_USER"] = "postgres"
 os.environ["POSTGRES_PASSWORD"] = "1"
 
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import NullPool
 from typing import AsyncGenerator
 from passlib.context import CryptContext
@@ -17,6 +18,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from src.models.evaluations import Evaluation
+from src.models.tasks import Task, TaskStatus
 from src.models.teams import Team
 from src.core.database import Base
 from src.main import app
@@ -261,3 +264,46 @@ async def test_team_with_members(db_session, test_team):
         "employee": employee,
         "another_employee": another_employee,
     }
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_task(db_session, test_team_with_members):
+    team_data = test_team_with_members
+    task = Task(
+        deadline=datetime.now(timezone.utc) + timedelta(days=7),
+        description="test task",
+        executor_id=team_data["employee"].id,
+        author_id=team_data["admin"].id,
+        team_id=team_data["team"].id,
+        status=TaskStatus.NEW,
+    )
+    db_session.add(task)
+    await db_session.flush()
+    return task
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_done_task_with_evaluation(db_session, test_team_with_members):
+    team_data = test_team_with_members
+    task = Task(
+        deadline=datetime.now(timezone.utc) + timedelta(days=1),
+        description="test task",
+        executor_id=team_data["employee"].id,
+        author_id=team_data["admin"].id,
+        team_id=team_data["team"].id,
+        status=TaskStatus.DONE,
+        completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add(task)
+    await db_session.flush()
+
+    evaluation = Evaluation(
+        task_id=task.id,
+        rating=5,
+        comment="test",
+        rater_id=team_data["admin"].id,
+    )
+    db_session.add(evaluation)
+    await db_session.flush()
+
+    return task
