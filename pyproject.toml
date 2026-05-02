@@ -41,9 +41,6 @@ packages = ["src"]
 
 [tool.pytest]
 minversion = "9.0"
-testpaths = [
-    "/tests",
-]
 pythonpath = [
     "."
 ]

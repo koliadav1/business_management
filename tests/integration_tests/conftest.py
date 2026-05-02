@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import (
 
 from src.models.meetings import Meeting
 from src.models.evaluations import Evaluation
-from src.models.tasks import Task, TaskStatus
+from src.models.tasks import Comment, Task, TaskStatus
 from src.models.teams import Team
 from src.core.database import Base
 from src.main import app
@@ -358,3 +358,16 @@ async def test_meeting(db_session, test_team_with_members):
 
     await db_session.flush()
     return meeting
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_comment(db_session, test_task, test_team_with_members):
+    comment = Comment(
+        content="test",
+        task_id=test_task.id,
+        author_id=test_team_with_members["admin"].id,
+    )
+
+    db_session.add(comment)
+    await db_session.flush()
+    return comment
