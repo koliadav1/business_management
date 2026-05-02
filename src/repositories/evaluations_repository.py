@@ -38,13 +38,14 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         paginated_query = query.offset(skip).limit(limit)
 
         result = await self._session.execute(paginated_query)
+        evaluations = result.scalars().all()
 
         count_query = await self._session.execute(
             select(func.count()).select_from(query.subquery())
         )
         total = count_query.scalar_one_or_none()
 
-        return result, total or 0
+        return evaluations, total or 0
 
     async def get_statistics(
         self,
@@ -115,13 +116,14 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         paginated_query = query.offset(skip).limit(limit)
 
         result = await self._session.execute(paginated_query)
+        evaluations_and_tasks = result.tuples().all()
 
         count_query = await self._session.execute(
             select(func.count()).select_from(query.subquery())
         )
         total = count_query.scalar_one_or_none()
 
-        return result, total or 0
+        return evaluations_and_tasks, total or 0
 
     async def get_by_team(
         self, team_id: int, skip: int, limit: int
@@ -139,13 +141,14 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         paginated_query = query.offset(skip).limit(limit)
 
         result = await self._session.execute(paginated_query)
+        evaluation = result.scalars().all()
 
         count_query = await self._session.execute(
             select(func.count()).select_from(query.subquery())
         )
         total = count_query.scalar_one_or_none()
 
-        return result, total or 0
+        return evaluation, total or 0
 
     async def get_done_tasks_with_evaluations(
         self, team_id: int, skip: int, limit: int
@@ -162,10 +165,11 @@ class EvaluationsRepository(SQLRepository[Evaluation], IEvaluationsRepository):
         paginated_query = query.offset(skip).limit(limit)
 
         result = await self._session.execute(paginated_query)
+        evaluations_and_tasks = result.tuples().all()
 
         count_query = await self._session.execute(
             select(func.count()).select_from(query.subquery())
         )
         total = count_query.scalar_one_or_none()
 
-        return result, total or 0
+        return evaluations_and_tasks, total or 0

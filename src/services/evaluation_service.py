@@ -139,14 +139,14 @@ class EvaluationService:
                     )
 
             target_id = user_id if user_id else current_user.id
-            evaluations, total = (
+            evaluations_and_tasks, total = (
                 await uow.evaluations_repo.get_evaluations_with_tasks(
                     target_id, current_user.team_id, skip, limit
                 )
             )
 
         return {
-            "items": evaluations,
+            "items": evaluations_and_tasks,
             "total": total,
             "page": page,
             "page_size": limit,

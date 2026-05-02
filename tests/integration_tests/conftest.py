@@ -307,3 +307,35 @@ async def test_done_task_with_evaluation(db_session, test_team_with_members):
     await db_session.flush()
 
     return task
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_completed_task(db_session, test_team_with_members):
+    team_data = test_team_with_members
+    task = Task(
+        deadline=datetime.now(timezone.utc) + timedelta(days=1),
+        description="test task",
+        executor_id=team_data["employee"].id,
+        author_id=team_data["admin"].id,
+        team_id=team_data["team"].id,
+        status=TaskStatus.DONE,
+        completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add(task)
+    await db_session.flush()
+    return task
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_evaluation(
+    db_session, test_team_with_members, test_completed_task
+):
+    evaluation = Evaluation(
+        task_id=test_completed_task.id,
+        rating=5,
+        comment="test",
+        rater_id=test_team_with_members["admin"].id,
+    )
+    db_session.add(evaluation)
+    await db_session.flush()
+    return evaluation
