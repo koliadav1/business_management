@@ -46,7 +46,8 @@ class TestEvaluationAPI:
         test_team_with_members,
     ):
         response = await client.get(
-            f"/evaluations/with-tasks?user_id={test_team_with_members["employee"].id}",
+            "/evaluations/with-tasks",
+            params={"user_id": test_team_with_members["employee"].id},
             headers=admin_auth_headers,
         )
 
@@ -64,7 +65,8 @@ class TestEvaluationAPI:
         test_team_with_members,
     ):
         response = await client.get(
-            f"/evaluations/stats?user_id={test_team_with_members["employee"].id}",
+            "/evaluations/stats",
+            params={"user_id": test_team_with_members["employee"].id},
             headers=admin_auth_headers,
         )
 

@@ -30,7 +30,8 @@ class TestTaskAPI:
         self, client, admin_auth_headers, test_task
     ):
         response = await client.get(
-            f"/tasks/?user_id={test_task.executor_id}",
+            "/tasks/",
+            params={"user_id": test_task.executor_id},
             headers=admin_auth_headers,
         )
 

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from src.models.meetings import Meeting
 from src.models.evaluations import Evaluation
 from src.models.tasks import Task, TaskStatus
 from src.models.teams import Team
@@ -339,3 +340,21 @@ async def test_evaluation(
     db_session.add(evaluation)
     await db_session.flush()
     return evaluation
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_meeting(db_session, test_team_with_members):
+    team_data = test_team_with_members
+    meeting = Meeting(
+        description="test",
+        start_time=datetime.now(timezone.utc) + timedelta(days=1),
+        duration_m=60,
+        initiator_id=team_data["admin"].id,
+        team_id=team_data["team"].id,
+        is_active=True,
+    )
+    db_session.add(meeting)
+    meeting.members = [team_data["admin"], team_data["employee"]]
+
+    await db_session.flush()
+    return meeting

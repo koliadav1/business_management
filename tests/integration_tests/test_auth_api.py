@@ -24,3 +24,5 @@ class TestAuthAPI:
 
     async def test_logout_success(self, client, auth_headers):
         response = await client.post("/auth/logout", headers=auth_headers)
+
+        assert response.status_code == 200
