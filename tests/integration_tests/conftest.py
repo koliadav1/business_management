@@ -113,7 +113,10 @@ async def auth_headers(client, test_user):
         },
     )
     tokens = response.json()
-    return {"Authorization": f"Bearer {tokens["access_token"]}"}
+    return {
+        "Authorization": f"Bearer {tokens["access_token"]}",
+        "X-Refresh-Token": tokens["refresh_token"],
+    }
 
 
 # Фикстуры с данными
