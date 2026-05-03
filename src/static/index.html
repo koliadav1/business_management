@@ -214,6 +214,22 @@
                             <button @click="createTask">Создать</button>
                         </div>
                         <div>
+                            <h4>Фильтры задач</h4>
+                            <div>
+                                <select x-model="taskFilters.status">
+                                    <option value="">Все статусы</option>
+                                    <option value="new">Новая</option>
+                                    <option value="in_progress">В работе</option>
+                                    <option value="done">Выполнена</option>
+                                    <option value="cancelled">Отменена</option>
+                                </select>
+                                <input type="date" x-model="taskFilters.deadline_from" placeholder="Дедлайн с">
+                                <input type="date" x-model="taskFilters.deadline_to" placeholder="Дедлайн по">
+                                <button @click="applyTaskFilters">Применить фильтры</button>
+                                <button @click="resetTaskFilters">Сбросить</button>
+                            </div>
+                        </div>
+                        <div>
                             <h3>Мои задачи</h3>
                             <template x-for="task in myTasks">
                                 <div @click="openTaskDetail(task)" style="cursor: pointer;">
@@ -327,6 +343,7 @@
                                     <div><b>Оценка:</b> <span x-text="ev.evaluation?.rating"></span>/5</div>
                                     <div x-show="ev.evaluation?.comment"><b>Комментарий:</b> <span
                                             x-text="ev.evaluation?.comment"></span></div>
+                                    <br>
                                 </div>
                             </template>
                             <template x-if="myEvaluations.length === 0">Нет оценок</template>
