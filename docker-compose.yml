@@ -3,7 +3,7 @@ services:
     build: .
     command: alembic upgrade head
     env_file: 
-      - .env.dev
+      - .env.prod
     depends_on:
       db:
         condition: service_healthy
