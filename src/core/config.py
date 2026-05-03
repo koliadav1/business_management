@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     ACCESS_LIFETIME_SECONDS: int
     REFRESH_LIFETIME_SECONDS: int
 
+    SUPER_USER_EMAIL: str = None
+    SUPER_USER_PASSWORD: str = None
+
     @property
     def DB_URL(self) -> str:
         return (
