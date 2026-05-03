@@ -29,7 +29,6 @@ class TeamService:
         async with uow:
             if current_user.team_id is not None:
                 raise UserAlreadyInTeamError("You're already in team")
-
             existing_team = await uow.teams_repo.get_by_name(name)
             if existing_team:
                 raise TeamAlreadyExistsError(
@@ -47,9 +46,9 @@ class TeamService:
                 name=name, description=description, invite_code=invite_code
             )
             created_team = await uow.teams_repo.add(team)
-
-            user = await uow.session.merge(current_user)
-            await uow.teams_repo.add_member(created_team, user, UserRole.ADMIN)
+            await uow.teams_repo.add_member(
+                created_team, current_user, UserRole.ADMIN
+            )
         return created_team
 
     async def get_team(self, uow: IUnitOfWork, team_id: int) -> Team:
@@ -197,8 +196,9 @@ class TeamService:
         async with uow:
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admins can delete teams")
-            await uow.teams_repo.delete(current_user.team_id)
-            await uow.users_repo.update_user_role(current_user, UserRole.USER)
+            team_id = current_user.team_id
+            await uow.teams_repo.remove_all_members(team_id)
+            await uow.teams_repo.delete(team_id)
 
     async def get_all_teams(
         self, uow: IUnitOfWork, page: int, limit: int
@@ -222,8 +222,7 @@ class TeamService:
                     "Team admin can only delete team, but not leave"
                 )
             else:
-                cur_user = await uow.session.merge(current_user)
-                await uow.teams_repo.remove_member(cur_user)
+                await uow.teams_repo.remove_member(current_user)
 
     async def join_by_team_code(
         self, uow: IUnitOfWork, current_user: User, inv_code: str
@@ -237,8 +236,9 @@ class TeamService:
             if not team:
                 raise TeamNotFoundError(f"Team with code {inv_code} not found")
 
-            user = await uow.session.merge(current_user)
-            await uow.teams_repo.add_member(team, user, UserRole.EMPLOYEE)
+            await uow.teams_repo.add_member(
+                team, current_user, UserRole.EMPLOYEE
+            )
 
         return team
 
@@ -250,8 +250,6 @@ class TeamService:
         Только для admin команды.
         """
         async with uow:
-            if current_user.team_id is None:
-                raise ForbiddenError("You're not in team")
             if current_user.role != UserRole.ADMIN:
                 raise ForbiddenError("Only admin can get invite code")
 

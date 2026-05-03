@@ -23,9 +23,9 @@ class MeetingService:
         description: str,
         start_time: datetime,
         duration_m: int,
-        member_ids: List[int],
         current_user: User,
         uow: IUnitOfWork,
+        member_ids: List[int] = [],
     ) -> Meeting:
         """
         Создание встречи.
@@ -86,11 +86,11 @@ class MeetingService:
     async def update_meeting(
         self,
         meeting_id: int,
-        description: str | None,
-        start_time: datetime | None,
-        duration_m: int | None,
         current_user: User,
         uow: IUnitOfWork,
+        description: str | None = None,
+        start_time: datetime | None = None,
+        duration_m: int | None = None,
     ) -> Meeting:
         """
         Обновление встречи.

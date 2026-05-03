@@ -49,5 +49,5 @@ class IEvaluationsRepository(IRepository[Evaluation]):
     async def get_done_tasks_with_evaluations(
         self, team_id: int, skip: int, limit: int
     ) -> tuple[tuple[Task, Evaluation], int]:
-        """Получить оценки сделанные задачи и оценки к ним, если они есть"""
+        """Получить сделанные задачи и оценки к ним, если они есть"""
         pass

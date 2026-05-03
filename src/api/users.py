@@ -33,14 +33,14 @@ async def update_me_secure(
     async with uow:
         update_data = user_data.model_dump(exclude_unset=True)
 
-        if "password" in update_data or "email" in update_data:
+        if "email" in update_data:
             current_password = update_data.pop("current_password", None)
 
             if not current_password:
                 raise HTTPException(
                     status_code=400,
                     detail="Current password needed "
-                    "to change your email/password",
+                    "to change your password",
                 )
 
             verified_user = await user_manager.authenticate(
@@ -56,7 +56,7 @@ async def update_me_secure(
                 )
 
             if "email" in update_data:
-                new_email = update_data.pop("email", None)
+                new_email = update_data.get("email", None)
 
                 exists = await uow.users_repo.get_by_email(new_email)
                 if exists:
@@ -92,7 +92,6 @@ async def delete_me(
     verified_user = await user_manager.authenticate(
         OAuth2PasswordRequestForm(username=user.email, password=password)
     )
-
     if not verified_user:
         raise HTTPException(
             status_code=401,

@@ -81,7 +81,7 @@ class CommentService:
 
             if (
                 current_user.id != comment.author_id
-                or current_user.role != UserRole.ADMIN
+                and current_user.role != UserRole.ADMIN
             ):
                 raise ForbiddenError("You can't edit this comment")
 
@@ -110,4 +110,4 @@ class CommentService:
             ):
                 raise ForbiddenError("You can't edit this comment")
 
-            await uow.comments_repo.delete(comment)
+            await uow.comments_repo.delete(comment_id)
