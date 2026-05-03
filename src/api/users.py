@@ -33,6 +33,12 @@ async def update_me_secure(
     async with uow:
         update_data = user_data.model_dump(exclude_unset=True)
 
+        if "phone_number" in update_data:
+            new_phone = update_data.get("phone_number")
+            user = await user_manager.get_by_phone(new_phone)
+            if user:
+                raise UserAlreadyExistsError("Phone number is already taken")
+
         if "email" in update_data:
             current_password = update_data.pop("current_password", None)
 
