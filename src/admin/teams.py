@@ -17,5 +17,6 @@ class TeamAdmin(ModelView, model=Team):
         Team.id,
         Team.team_tasks,
         Team.invite_code,
+        Team.meetings,
     ]
     column_searchable_list = [Team.name, Team.description, Team.invite_code]
