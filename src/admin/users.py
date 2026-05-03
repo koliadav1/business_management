@@ -31,6 +31,11 @@ class UserAdmin(ModelView, model=User):
         User.created_at,
         User.updated_at,
         User.id,
+        User.initiated_meetings,
+        User.comments,
+        User.evaluations,
+        User.assigned_tasks,
+        User.created_tasks,
     ]
     form_overrides = {"hashed_password": PasswordField}
     column_searchable_list = [User.email, "team.name"]

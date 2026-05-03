@@ -23,6 +23,11 @@ function app() {
         secelctedTask: null,
         lastValidStatus: '',
         editTaskForm: { description: '', deadline: '', executor_id: '' },
+        taskFilters: {
+            status: '',
+            deadline_from: '',
+            deadline_to: ''
+        },
         // Оценки
         myEvaluations: [], rateTaskId: '', rateValue: 5, rateComment: '', rateableTasks: [],
         ratingStats: null,
@@ -30,7 +35,7 @@ function app() {
         statsEndDate: '',
         statsUserId: '',
         statsLoading: false,
-        // Meetings
+        // Встречи
         myMeetings: [], myActiveMeetings: [], teamMeetings: [], newMeetingDesc: '', newMeetingStart: '', newMeetingDuration: 30, newMeetingMembers: [],
         selectedMeeting: null,
         editMeetingForm: {
@@ -47,6 +52,7 @@ function app() {
         calendarStatusFilter: 'all',
         calendarMeetingFilter: 'all',
         selectedCalendarEvent: null,
+        calendarLoading: false,
         // Пагинация
         pagination: {
             myTasks: { page: 1, total: 0, pageSize: 10, items: [] },
@@ -70,6 +76,9 @@ function app() {
                     this.selectedTask = null;
                     this.editTaskForm = { description: '', deadline: '', executor_id: '' };
                     this.newCommentText = '';
+                }
+                if (newTab === 'tasks') {
+                    this.applyTaskFilters();
                 }
                 if (newTab !== 'meetings') {
                     this.selectedMeeting = null;
@@ -151,7 +160,6 @@ function app() {
         async loadInitialData() {
             await this.loadAllTeams();
             await this.loadMyTeam();
-            await this.loadMyTasks(); await this.loadTeamTasks();
             await this.loadMyEvaluations();
             await this.loadRateableTasks();
             await this.loadMyMeetings(); await this.loadTeamMeetings();
@@ -159,12 +167,38 @@ function app() {
         },
         // Календарь
         async loadCalendarData() {
-            await this.loadMyTasks();
-            await this.loadTeamTasks();
-            await this.loadMyMeetings();
-            this.loadMyActiveMeetings();
-            await this.loadTeamMeetings();
-            this.$forceUpdate();
+            if (this.calendarLoading) return;
+            this.calendarLoading = true;
+            try {
+                const startOfMonth = new Date(this.currentYear, this.currentMonth, 1);
+                const endOfMonth = new Date(this.currentYear, this.currentMonth + 1, 0, 23, 59, 59);
+                const startDate = startOfMonth.toISOString();
+                const endDate = endOfMonth.toISOString();
+                if (this.calendarFilter === 'my') {
+                    await this.loadMyTasks({
+                        start_date: startDate,
+                        end_date: endDate
+                    });
+                } else if (this.calendarFilter === 'team' && this.isAdminOrManager) {
+                    await this.loadTeamTasks({
+                        start_date: startDate,
+                        end_date: endDate
+                    });
+                }
+                const meetingFilters = {
+                    start_date: startDate,
+                    end_date: endDate
+                };
+                if (this.calendarFilter === 'my') {
+                    await this.loadMyMeetings(meetingFilters);
+                } else if (this.calendarFilter === 'team' && this.isAdminOrManager) {
+                    await this.loadTeamMeetings(meetingFilters);
+                }
+                this.loadMyActiveMeetings();
+                this.$forceUpdate();
+            } finally {
+                this.calendarLoading = false;
+            }
         },
         openEventDetail(event) {
             this.closeEvent()
@@ -184,6 +218,7 @@ function app() {
         resetCalendarFilters() {
             this.calendarStatusFilter = 'all';
             this.calendarMeetingFilter = 'all';
+            this.loadCalendarData();
         },
         filterTasksByStatus(tasks) {
             if (!tasks) return [];
@@ -272,6 +307,7 @@ function app() {
             } else {
                 this.currentMonth--;
             }
+            this.loadCalendarData();
         },
         nextMonth() {
             if (this.currentMonth === 11) {
@@ -280,22 +316,44 @@ function app() {
             } else {
                 this.currentMonth++;
             }
+            this.loadCalendarData();
         },
         goToToday() {
             this.currentYear = new Date().getFullYear();
             this.currentMonth = new Date().getMonth();
             this.selectedDate = new Date().toISOString().slice(0, 10);
+            this.loadCalendarData();
         },
         // Встречи
-        async loadMyMeetings() {
-            const res = await this.fetchWithAuth('/meetings/?include_cancelled=true');
+        async loadMyMeetings(filters = {}) {
+            const params = new URLSearchParams({
+                include_cancelled: true,
+                include_finished: true
+            });
+            if (filters.start_date) {
+                params.append('start_date', filters.start_date);
+            }
+            if (filters.end_date) {
+                params.append('end_date', filters.end_date);
+            }
+            const res = await this.fetchWithAuth(`/meetings/?${params.toString()}`);
             if (res.ok) this.myMeetings = await res.json();
         },
         loadMyActiveMeetings() {
             this.myActiveMeetings = this.myMeetings.filter(meeting => meeting.is_active === true)
         },
-        async loadTeamMeetings() {
-            const res = await this.fetchWithAuth('/meetings/team?include_cancelled=true');
+        async loadTeamMeetings(filters = {}) {
+            const params = new URLSearchParams({
+                include_cancelled: true,
+                include_finished: true
+            });
+            if (filters.start_date) {
+                params.append('start_date', filters.start_date);
+            }
+            if (filters.end_date) {
+                params.append('end_date', filters.end_date);
+            }
+            const res = await this.fetchWithAuth(`/meetings/team?${params.toString()}`);
             if (res.ok) this.teamMeetings = await res.json();
         },
         async createMeeting() {
@@ -565,13 +623,32 @@ function app() {
                     )
                 }
             );
-            if (res.ok) { alert('Задача создана'); this.loadMyTasks(); this.loadTeamTasks(); }
+            if (res.ok) {
+                alert('Задача создана');
+                await this.applyTaskFilters();
+            }
         },
-        async loadMyTasks() {
+        async loadMyTasks(extraFilters = {}) {
             try {
                 const page = this.pagination.myTasks.page;
                 const limit = this.pagination.myTasks.pageSize;
-                const res = await this.fetchWithAuth(`/tasks/?page=${page}&limit=${limit}`);
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: limit
+                });
+                if (this.taskFilters.status) {
+                    params.append('status', this.taskFilters.status);
+                }
+                if (this.taskFilters.deadline_from) {
+                    params.append('start_date', new Date(this.taskFilters.deadline_from).toISOString());
+                }
+                if (this.taskFilters.deadline_to) {
+                    params.append('end_date', new Date(this.taskFilters.deadline_to).toISOString());
+                }
+                if (extraFilters.status) params.append('status', extraFilters.status);
+                if (extraFilters.start_date) params.append('start_date', extraFilters.start_date);
+                if (extraFilters.end_date) params.append('end_date', extraFilters.end_date);
+                const res = await this.fetchWithAuth(`/tasks/?${params.toString()}`);
                 if (res.ok) {
                     const data = await res.json();
                     this.updatePagination('myTasks', data);
@@ -581,12 +658,28 @@ function app() {
                 console.error(e);
             }
         },
-        async loadTeamTasks() {
+        async loadTeamTasks(extraFilters = {}) {
             if (!this.isAdminOrManager) return;
             try {
                 const page = this.pagination.teamTasks.page;
                 const limit = this.pagination.teamTasks.pageSize;
-                const res = await this.fetchWithAuth(`/tasks/team?page=${page}&limit=${limit}`);
+                const params = new URLSearchParams({
+                    page: page,
+                    limit: limit
+                });
+                if (this.taskFilters.status) {
+                    params.append('status', this.taskFilters.status);
+                }
+                if (this.taskFilters.deadline_from) {
+                    params.append('start_date', new Date(this.taskFilters.deadline_from).toISOString());
+                }
+                if (this.taskFilters.deadline_to) {
+                    params.append('end_date', new Date(this.taskFilters.deadline_to).toISOString());
+                }
+                if (extraFilters.status) params.append('status', extraFilters.status);
+                if (extraFilters.start_date) params.append('start_date', extraFilters.start_date);
+                if (extraFilters.end_date) params.append('end_date', extraFilters.end_date);
+                const res = await this.fetchWithAuth(`/tasks/team?${params.toString()}`);
                 if (res.ok) {
                     const data = await res.json();
                     this.updatePagination('teamTasks', data);
@@ -671,8 +764,7 @@ function app() {
             });
             if (res.ok) {
                 await this.openTaskDetail(this.selectedTask);
-                await this.loadMyTasks();
-                await this.loadTeamTasks();
+                await this.applyTaskFilters();
             } else {
                 const error = await res.json();
                 const errorMessage = error.detail?.[0]?.msg || 'Ошибка сервера';
@@ -685,6 +777,22 @@ function app() {
                 deadline: this.selectedTask.deadline ? this.formatDateTimeLocal(this.selectedTask.deadline) : '',
                 executor_id: this.selectedTask.executor_id || ''
             };
+        },
+        async applyTaskFilters() {
+            this.pagination.myTasks.page = 1;
+            this.pagination.teamTasks.page = 1;
+            await this.loadMyTasks();
+            if (this.isAdminOrManager) {
+                await this.loadTeamTasks();
+            }
+        },
+        async resetTaskFilters() {
+            this.taskFilters = {
+                status: '',
+                deadline_from: '',
+                deadline_to: ''
+            };
+            await this.applyTaskFilters();
         },
         // Команды
         async loadAllTeams() {
