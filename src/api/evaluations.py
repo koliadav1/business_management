@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import List
-
+from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query
 
+from src.schemas.base import DateFilter, PaginatedRead
 from src.services.evaluation_service import EvaluationService
 from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.utils.dependencies import get_current_user, get_uow
@@ -47,11 +47,13 @@ async def rate_task(
 
 @router.get(
     "/",
-    response_model=List[EvaluationRead],
+    response_model=PaginatedRead[EvaluationRead],
     summary="Получить оценки",
     description="Возвращает оценки в зависимости от роли",
 )
-async def get_evaluation(
+async def get_evaluations(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user_id: int | None = Query(
         None, description="ID пользователя, только для admin и manager"
     ),
@@ -65,21 +67,30 @@ async def get_evaluation(
     Employee получают только свои оценки внутри команды
     User получает свои оценки вне зависисомти от команды
     """
-    evaluations = await service.get_evaluations(
+    result = await service.get_evaluations(
         current_user=current_user,
         uow=uow,
+        page=page,
+        limit=limit,
         user_id=user_id,
     )
-    return evaluations
+    return PaginatedRead(
+        items=result["items"],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.get(
     "/with-tasks",
-    response_model=List[EvaluationWithTaskRead],
+    response_model=PaginatedRead[EvaluationWithTaskRead],
     summary="Получить оценки вместе с задачами",
     description="Возвращает оценки и связанные с ними задачи",
 )
 async def get_evaluations_with_tasks(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user_id: int | None = Query(
         None, description="ID пользователя, только для admin и manager"
     ),
@@ -92,16 +103,23 @@ async def get_evaluations_with_tasks(
     Admin и manager получают оценки любого пользователя
     Employee получает только свои оценки
     """
-    evaluations = await service.get_evaluations_with_tasks(
-        uow=uow, current_user=current_user, user_id=user_id
+    result = await service.get_evaluations_with_tasks(
+        uow=uow,
+        current_user=current_user,
+        page=page,
+        limit=limit,
+        user_id=user_id,
     )
-    return [
-        EvaluationWithTaskRead(
-            evaluation=evaluation,
-            task=task,
-        )
-        for evaluation, task in evaluations
-    ]
+    evaluations_and_tasks = list(
+        EvaluationWithTaskRead(evaluation=evaluation, task=task)
+        for evaluation, task in result["items"]
+    )
+    return PaginatedRead(
+        items=evaluations_and_tasks,
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.get(
@@ -111,11 +129,10 @@ async def get_evaluations_with_tasks(
     description="Возвращает среднюю оценку, количество и распределение",
 )
 async def get_stats(
+    date_filters: DateFilter = Depends(),
     user_id: int | None = Query(
         None, description="ID пользователя, только для admin и manager"
     ),
-    start_date: datetime | None = Query(None, description="Начало периода"),
-    end_date: datetime | None = Query(None, description="Конец периода"),
     current_user: User = Depends(get_current_user),
     uow: IUnitOfWork = Depends(get_uow),
     service: EvaluationService = Depends(),
@@ -130,8 +147,8 @@ async def get_stats(
         uow=uow,
         current_user=current_user,
         user_id=user_id,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=date_filters.start_date,
+        end_date=date_filters.end_date,
     )
     return stats
 

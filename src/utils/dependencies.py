@@ -1,11 +1,6 @@
 from collections.abc import AsyncGenerator
 from fastapi import Depends
 from fastapi_users import FastAPIUsers
-from fastapi_users.authentication import (
-    AuthenticationBackend,
-    BearerTransport,
-    JWTStrategy,
-)
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,8 +9,11 @@ from src.core.database import session_maker
 from src.services.user_manager import UserManager
 from src.repositories.unit_of_work import SQLAlchUnitOfWork
 from src.core.config import settings
+from src.auth.token_transport import BearerRefreshTransport
+from src.auth.strategy import JWTRefreshStrategy
+from src.auth.backend import AuthenticationRefreshBackend
 
-bearer_transport = BearerTransport(tokenUrl="auth/login")
+bearer_transport = BearerRefreshTransport(tokenUrl="auth/login")
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -38,12 +36,18 @@ async def get_uow():
     return SQLAlchUnitOfWork(session_maker)
 
 
-def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=settings.SECRET, lifetime_seconds=3600)
+def get_jwt_strategy() -> JWTRefreshStrategy:
+    return JWTRefreshStrategy(
+        secret=settings.SECRET,
+        lifetime_seconds=settings.ACCESS_LIFETIME_SECONDS,
+        refresh_lifetime_seconds=settings.REFRESH_LIFETIME_SECONDS,
+    )
 
 
-auth_backend = AuthenticationBackend(
-    name="jwt", transport=bearer_transport, get_strategy=get_jwt_strategy
+auth_backend = AuthenticationRefreshBackend(
+    name="jwt-refresh",
+    transport=bearer_transport,
+    get_strategy=get_jwt_strategy,
 )
 
 fastapi_users = FastAPIUsers[User, int](

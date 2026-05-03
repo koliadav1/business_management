@@ -30,12 +30,14 @@ class EvaluationService:
             if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
                 raise ForbiddenError("Only admins and managers can rate tasks")
 
-            task = await CheckTeamLogic.check_task_team(
-                uow, current_user, task_id
-            )
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             if task.executor_id == current_user.id:
-                raise ForbiddenError("You can't rate your own tasks")
+                raise ForbiddenError("You can't rate tasks assigned to you")
+
+            if task.author_id != current_user.id:
+                raise ForbiddenError("You can only rate tasks created by you")
 
             if task.status != TaskStatus.DONE:
                 raise TaskNotCompletedError(
@@ -63,6 +65,8 @@ class EvaluationService:
         self,
         current_user: User,
         uow: IUnitOfWork,
+        page: int,
+        limit: int,
         user_id: int | None = None,
     ) -> List[Evaluation]:
         """
@@ -72,36 +76,50 @@ class EvaluationService:
         User получает свои оценки вне зависисомти от команды
         """
         async with uow:
+            skip = (page - 1) * limit
             if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
                 if current_user.team_id is None:
                     raise ForbiddenError("You are not in the team")
 
                 if user_id:
-                    team_id = await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
-                    )
-                    evaluations = (
+                    evaluations, total = (
                         await uow.evaluations_repo.get_user_evaluations(
-                            user_id, team_id
+                            user_id, skip, limit, current_user.team_id
                         )
                     )
                 else:
-                    evaluations = await uow.evaluations_repo.get_by_team(
-                        current_user.team_id
+                    evaluations, total = (
+                        await uow.evaluations_repo.get_by_team(
+                            current_user.team_id, skip, limit
+                        )
                     )
             elif current_user.role == UserRole.EMPLOYEE:
-                evaluations = await uow.evaluations_repo.get_user_evaluations(
-                    current_user.id, current_user.team_id
+                evaluations, total = (
+                    await uow.evaluations_repo.get_user_evaluations(
+                        current_user.id, skip, limit, current_user.team_id
+                    )
                 )
             else:
-                evaluations = await uow.evaluations_repo.get_user_evaluations(
-                    current_user.id
+                evaluations, total = (
+                    await uow.evaluations_repo.get_user_evaluations(
+                        current_user.id, skip, limit
+                    )
                 )
 
-        return evaluations
+        return {
+            "items": evaluations,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_evaluations_with_tasks(
-        self, uow: IUnitOfWork, current_user: User, user_id: int | None = None
+        self,
+        uow: IUnitOfWork,
+        current_user: User,
+        page: int,
+        limit: int,
+        user_id: int | None = None,
     ) -> List[tuple[Evaluation, Task]]:
         """
         Получить все оценки пользователя вместе с данными о задачах.
@@ -109,28 +127,30 @@ class EvaluationService:
         Employee получает только свои оценки
         """
         async with uow:
+            skip = (page - 1) * limit
             if current_user.team_id is None:
                 raise ForbiddenError("You are not in the team")
 
-            if user_id:
-                if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
-                    team_id = await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
+            if user_id and user_id != current_user.id:
+                if current_user.role not in [UserRole.ADMIN, UserRole.MANAGER]:
+                    raise ForbiddenError(
+                        "Only admins and managers "
+                        "can view other user's evaluations"
                     )
-                    evaluations = (
-                        await uow.evaluations_repo.get_evaluations_with_tasks(
-                            user_id, team_id
-                        )
-                    )
-                    return evaluations
 
-            evaluations = (
+            target_id = user_id if user_id else current_user.id
+            evaluations_and_tasks, total = (
                 await uow.evaluations_repo.get_evaluations_with_tasks(
-                    current_user.id, current_user.team_id
+                    target_id, current_user.team_id, skip, limit
                 )
             )
 
-        return evaluations
+        return {
+            "items": evaluations_and_tasks,
+            "total": total,
+            "page": page,
+            "page_size": limit,
+        }
 
     async def get_rating_stats(
         self,
@@ -149,8 +169,9 @@ class EvaluationService:
         async with uow:
             if current_user.role in [UserRole.ADMIN, UserRole.MANAGER]:
                 if user_id:
-                    team_id = await CheckTeamLogic.check_user_team(
-                        uow, current_user, user_id
+                    user = await uow.users_repo.get(user_id)
+                    team_id = CheckTeamLogic.check_user_team(
+                        current_user, user
                     )
                     stats = await uow.evaluations_repo.get_statistics(
                         user_id, team_id, start_date, end_date
@@ -189,7 +210,8 @@ class EvaluationService:
                     "Only admins and managers can delete evaluations"
                 )
 
-            await CheckTeamLogic.check_task_team(uow, current_user, task_id)
+            task = await uow.tasks_repo.get(task_id)
+            CheckTeamLogic.check_task_team(current_user, task)
 
             evaluation = await uow.evaluations_repo.get_by_task(task_id)
             if not evaluation:

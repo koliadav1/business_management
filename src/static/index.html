@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система управления бизнесом</title>
+    <script defer src="/js/app.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body>
+    <!-- Пагинация -->
+    <template id="pagination-template">
+        <div>
+            <button @click="changePage(listName, pagination[listName].page - 1)"
+                :disabled="pagination[listName].page === 1">
+                ←
+            </button>
+            <template x-for="page in getPageNumbers(listName)" :key="page">
+                <button x-if="page === '...'">
+                    ...
+                </button>
+                <button x-if="page !== '...'" @click="changePage(listName, page)"
+                    :class="pagination[listName].page === page ? 'active-page' : ''">
+                    <span x-text="page"></span>
+                </button>
+            </template>
+            <button @click="changePage(listName, pagination[listName].page + 1)"
+                :disabled="pagination[listName].page * pagination[listName].pageSize >= pagination[listName].total">
+                →
+            </button>
+            <select @change="changePageSize(listName, parseInt($event.target.value))">
+                <option :value="10" :selected="pagination[listName].pageSize === 10">10</option>
+                <option :value="20" :selected="pagination[listName].pageSize === 20">20</option>
+                <option :value="50" :selected="pagination[listName].pageSize === 50">50</option>
+            </select>
+        </div>
+        <div>
+            Показано <span x-text="pagination[listName].items.length"></span> из <span
+                x-text="pagination[listName].total"></span>
+        </div>
+    </template>
+    <!-- Основной дизайн -->
+    <div x-data="app()" x-init="initApp">
+        <div>
+            <!-- Вход/Регистрация -->
+            <div x-show="!token">
+                <div>
+                    <h3>Вход</h3>
+                    <div>
+                        <label>Email</label>
+                        <input type="email" x-model="loginEmail">
+                    </div>
+                    <div>
+                        <label>Пароль</label>
+                        <input type="password" x-model="loginPassword">
+                    </div>
+                    <button @click="login">Войти</button>
+                    <hr>
+                    <h3>Регистрация</h3>
+                    <div>
+                        <label>Email</label>
+                        <input type="email" x-model="regEmail">
+                    </div>
+                    <div>
+                        <label>Пароль</label>
+                        <input type="password" x-model="regPassword">
+                    </div>
+                    <button @click="register">Зарегистрироваться</button>
+                </div>
+            </div>
+            <div x-show="token">
+                <div>
+                    <template x-for="tab in ['profile', 'teams', 'tasks', 'meetings', 'ratings', 'calendar']">
+                        <button @click="activeTab = tab" x-text="tabLabel(tab)"></button>
+                    </template>
+                    <button @click="logout">Выйти</button>
+                </div>
+                <div>
+                    <!-- Профиль -->
+                    <div x-show="activeTab === 'profile'">
+                        <div>
+                            <h3>Мой профиль</h3>
+                            <div>
+                                <label>ID</label>
+                                <span x-text="profileForm.id"></span>
+                            </div>
+                            <div>
+                                <label>Имя</label>
+                                <input x-model="profileForm.name">
+                            </div>
+                            <div>
+                                <label>Фамилия</label>
+                                <input x-model="profileForm.surname">
+                            </div>
+                            <div>
+                                <label>Телефон</label>
+                                <input x-model="profileForm.phone_number">
+                            </div>
+                            <div>
+                                <label>Email</label>
+                                <input type="email" x-model="profileForm.email">
+                            </div>
+                            <div>
+                                <label>Текущий пароль (для изменения email/пароля)</label>
+                                <input type="password" x-model="profileForm.current_password">
+                            </div>
+                            <div>
+                                <label>Новый пароль</label>
+                                <input type="password" x-model="profileForm.password">
+                            </div>
+                            <button @click="updateProfile">Обновить профиль</button>
+                            <button @click="deleteAccount">Удалить
+                                аккаунт</button>
+                        </div>
+                    </div>
+                    <!-- Команды -->
+                    <div x-show="activeTab === 'teams'">
+                        <!-- Без команды -->
+                        <div x-show="!currentUser?.team_id">
+                            <div>
+                                <h3>Создать команду</h3>
+                                <input type="text" placeholder="Название" x-model="newTeamName">
+                                <textarea placeholder="Описание" x-model="newTeamDesc"></textarea>
+                                <button @click="createTeam">Создать</button>
+                            </div>
+                            <div>
+                                <h3>Присоединиться по коду</h3>
+                                <input type="text" placeholder="Код приглашения" x-model="inviteCode">
+                                <button @click="joinTeamByCode">Присоединиться</button>
+                            </div>
+                            <div>
+                                <h3>Все команды (<span x-text="allTeams.length"></span>)</h3>
+                                <template x-for="team in allTeams">
+                                    <div>
+                                        <div><b x-text="team.name"></b></div>
+                                        <div x-text="team.description"></div>
+                                    </div>
+                                </template>
+                                <template x-if="allTeams.length === 0">Нет доступных команд</template>
+                                <template x-if="(allTeams.length === 0)">
+                                    <div x-data="{listName: 'allTeams'}">
+                                        <div x-html="getPaginationHtml(listName)"></div>
+                                    </div>
+                                </template>
+                                <button @click="loadAllTeams">Обновить список</button>
+                            </div>
+                        </div>
+                        <!-- В команде -->
+                        <div x-show="currentUser?.team_id && myTeam">
+                            <div>
+                                <div>
+                                    <h3 x-text="myTeam.name"></h3>
+                                    <span x-show="isTeamAdmin">Admin команды</span>
+                                </div>
+                                <p x-text="myTeam.description || 'Нет описания'"></p>
+                                <div x-show="isTeamAdmin">
+                                    <button @click="getInviteCode">Получить invite-код</button><br>
+                                    <div x-show="inviteCodeValue">
+                                        <strong>Код приглашения:</strong> <span x-text="inviteCodeValue"></span><br>
+                                    </div>
+                                    <button @click="deleteTeam">Удалить команду</button>
+                                    <div>
+                                        <h4>Добавить участника</h4>
+                                        <div>
+                                            <input placeholder="ID пользователя" x-model="addMemberId">
+                                            <select x-model="addMemberRole">
+                                                <option value="employee">Сотрудник</option>
+                                                <option value="manager">Менеджер</option>
+                                            </select>
+                                            <button @click="addMemberById">Добавить</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4>Участники (<span x-text="teamMembers.length"></span>)</h4>
+                                <template x-for="member in teamMembers">
+                                    <div>
+                                        <span>
+                                            <b x-text="member.name || member.email || member.id"></b>
+                                            (роль: <span x-text="member.role"></span>)
+                                        </span>
+                                        <span x-show="isTeamAdmin && member.id !== currentUser?.id">
+                                            <button
+                                                @click="changeMemberRole(member.id, member.role === 'manager' ? 'employee' : 'manager')">
+                                                Сменить роль
+                                            </button>
+                                            <button @click="removeMember(member.id)">Исключить</button>
+                                        </span>
+                                    </div>
+                                </template>
+                                <button @click="loadMyTeam">Обновить список участников</button>
+                                <button x-show="!isTeamAdmin" @click="quitTeam">Выйти из
+                                    команды</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Задачи -->
+                    <div x-show="activeTab === 'tasks'">
+                        <div x-show="isAdminOrManager">
+                            <h3>Создать задачу</h3>
+                            <input type="text" placeholder="Описание" x-model="newTaskDesc">
+                            <input type="datetime-local" x-model="newTaskDeadline">
+                            <select x-model="newTaskExecutorId">
+                                <option value="">Выберите исполнителя</option>
+                                <template
+                                    x-for="m in teamMembers.filter(m => {if (m.id === currentUser.id) return false;if (isTeamAdmin) return true;if (isAdminOrManager) return m.role === 'employee';})"
+                                    :key="m.id">
+                                    <option :value="m.id" x-text="m.name || m.email"></option>
+                                </template>
+                            </select>
+                            <button @click="createTask">Создать</button>
+                        </div>
+                        <div>
+                            <h4>Фильтры задач</h4>
+                            <div>
+                                <select x-model="taskFilters.status">
+                                    <option value="">Все статусы</option>
+                                    <option value="new">Новая</option>
+                                    <option value="in_progress">В работе</option>
+                                    <option value="done">Выполнена</option>
+                                    <option value="cancelled">Отменена</option>
+                                </select>
+                                <input type="date" x-model="taskFilters.deadline_from" placeholder="Дедлайн с">
+                                <input type="date" x-model="taskFilters.deadline_to" placeholder="Дедлайн по">
+                                <button @click="applyTaskFilters">Применить фильтры</button>
+                                <button @click="resetTaskFilters">Сбросить</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3>Мои задачи</h3>
+                            <template x-for="task in myTasks">
+                                <div @click="openTaskDetail(task)" style="cursor: pointer;">
+                                    <div><b x-text=" task.description"></b></div>
+                                    <div>Статус: <span x-text="task.status"></span> | Дедлайн: <span
+                                            x-text="formatDate(task.deadline)"></span></div>
+                                </div>
+                            </template>
+                            <template x-if="myTasks.length === 0">Нет задач</template>
+                            <template x-if="!(myTasks.length === 0)">
+                                <div x-data="{listName: 'myTasks'}">
+                                    <div x-html="getPaginationHtml(listName)"></div>
+                                </div>
+                            </template>
+                            <button @click="loadMyTasks">Обновить</button>
+                        </div>
+                        <div x-show="isAdminOrManager">
+                            <h3>Задачи команды</h3>
+                            <template x-for="task in teamTasks">
+                                <div @click="openTaskDetail(task)" style="cursor: pointer;">
+                                    <div><b x-text="task.description"></b> (исполнитель: <span
+                                            x-text="task.executor_id"></span>)</div>
+                                    <div>Статус: <span x-text="task.status"></span> | Дедлайн: <span
+                                            x-text="formatDate(task.deadline)"></span></div>
+                                </div>
+                            </template>
+
+                            <template x-if="teamTasks.length === 0">Нет задач</template>
+                            <template x-if="!(teamTasks.length === 0)">
+                                <div x-data="{listName: 'teamTasks'}">
+                                    <div x-html="getPaginationHtml(listName)"></div>
+                                </div>
+                            </template>
+
+                            <button @click="loadTeamTasks">Обновить</button>
+                        </div>
+                    </div>
+                    <!-- Оценки -->
+                    <div x-show="activeTab === 'ratings'">
+                        <div x-show="isAdminOrManager">
+                            <h3>Оценить задачу</h3>
+                            <select x-model="rateTaskId">
+                                <option value="">Выберите задачу</option>
+                                <template
+                                    x-for="t in rateableTasks.filter(t => isTeamAdmin || t.task.author_id === currentUser.id)"
+                                    :key="
+                                    t.task.id">
+                                    <option :value="t.task.id"
+                                        x-text="t.task.description + ' (исп: '+t.task.executor_id+')'"></option>
+                                </template>
+                            </select>
+                            <input type="number" min="1" max="5" placeholder="Оценка 1-5" x-model="rateValue">
+                            <textarea placeholder="Комментарий" x-model="rateComment"></textarea>
+                            <button @click="submitRating" :disabled="!rateTaskId">
+                                <span x-text="isAlreadyRated ? 'Изменить оценку' : 'Поставить оценку'"></span>
+                            </button>
+                        </div>
+                        <div>
+                            <h3>Статистика оценок</h3>
+                            <!-- Фильтры статистики -->
+                            <div>
+                                <div x-show="isAdminOrManager">
+                                    <label>Пользователь:</label>
+                                    <select x-model="statsUserId" @change="loadRatingStats">
+                                        <option value="">Все пользователи</option>
+                                        <template x-for="member in teamMembers" :key="member.id">
+                                            <option :value="member.id" x-text="member.name || member.email"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Период:</label>
+                                    <input type="date" x-model="statsStartDate" @change="loadRatingStats">
+                                    <span> - </span>
+                                    <input type="date" x-model="statsEndDate" @change="loadRatingStats">
+                                    <button
+                                        @click="statsStartDate = ''; statsEndDate = ''; statsUserId = ''; loadRatingStats()">Сбросить</button>
+                                </div>
+                            </div>
+                            <!-- Отображение статистики -->
+                            <div x-show="!statsLoading && ratingStats">
+                                <div>
+                                    <div>
+                                        <div>Средняя оценка: <span x-text="averageRating"></span></div>
+                                    </div>
+                                    <div>
+                                        <div>Всего оценок: <span x-text="totalRatings"></span></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4>Распределение оценок</h4>
+                                    <template x-for="item in distributionArray" :key="item.rating">
+                                        <div>
+                                            <div>
+                                                <b x-text="item.rating + ' ★'"></b>
+                                            </div>
+                                            <div x-text="item.count"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div x-show="!statsLoading && !ratingStats">
+                                Нет данных для статистики
+                            </div>
+                        </div>
+                        <div x-show="!isTeamAdmin">
+                            <h3>Оценки (мои задачи)</h3>
+                            <template x-for="ev in myEvaluations">
+                                <div>
+                                    <div><b>Задача:</b> <span x-text="ev.task?.description"></span></div>
+                                    <div><b>Оценка:</b> <span x-text="ev.evaluation?.rating"></span>/5</div>
+                                    <div x-show="ev.evaluation?.comment"><b>Комментарий:</b> <span
+                                            x-text="ev.evaluation?.comment"></span></div>
+                                    <br>
+                                </div>
+                            </template>
+                            <template x-if="myEvaluations.length === 0">Нет оценок</template>
+                            <template x-if="!(myEvaluations.length === 0)">
+                                <div x-data="{listName: 'myEvaluations'}">
+                                    <div x-html="getPaginationHtml(listName)"></div>
+                                </div>
+                            </template>
+                            <button @click="loadMyEvaluations">Обновить</button>
+                        </div>
+                    </div>
+                    <!-- Встречи -->
+                    <div x-show="activeTab === 'meetings'">
+                        <div x-show="isAdminOrManager">
+                            <h3>Создать встречу</h3>
+                            <textarea placeholder="Описание" x-model="newMeetingDesc"></textarea>
+                            <input type="datetime-local" x-model="newMeetingStart">
+                            <input type="number" placeholder="Длительность (минут)" x-model="newMeetingDuration">
+                            <select multiple x-model="newMeetingMembers">
+                                <template x-for="m in teamMembers" :key="m.id">
+                                    <option :value="m.id" x-text="m.name || m.email"></option>
+                                </template>
+                            </select>
+                            <button @click="createMeeting">Создать</button>
+                        </div>
+                        <div>
+                            <h3>Мои запланированные встречи</h3>
+                            <template x-for="mt in myActiveMeetings">
+                                <div @click="openMeetingDetail(mt)" style="cursor: pointer;">
+                                    <b x-text="mt.description"></b>
+                                    Начало: <span x-text="formatDate(mt.start_time)"></span>
+                                    (<span x-text="mt.duration_m"></span> мин)
+                                </div>
+                            </template>
+                            <button @click="loadMyActiveMeetings">Обновить</button>
+                        </div>
+                        <div>
+                            <h3>Встречи команды</h3>
+                            <template x-for="mt in teamMeetings">
+                                <div @click="openMeetingDetail(mt)" style="cursor: pointer;">
+                                    <b x-text="mt.description"></b>
+                                    Начало: <span x-text="formatDate(mt.start_time)"></span>
+                                    (<span x-text="mt.duration_m"></span> мин)
+                                </div>
+                            </template>
+                            <button @click="loadTeamMeetings">Обновить</button>
+                        </div>
+                    </div>
+                    <!-- Календарь -->
+                    <div x-show="activeTab === 'calendar'">
+                        <div>
+                            <div>
+                                <button @click="prevMonth">◀</button>
+                                <span
+                                    x-text="new Date(currentYear, currentMonth).toLocaleString('ru', {month: 'long', year: 'numeric'})"></span>
+                                <button @click="nextMonth">▶</button>
+                                <button @click="goToToday">Сегодня</button>
+                            </div>
+                            <div>
+                                <button @click="calendarView = 'month'">Месяц</button>
+                                <button @click="calendarView = 'day'">День</button>
+                            </div>
+                            <div>
+                                <div>
+                                    <label>Источник: </label>
+                                    <select x-model="calendarFilter" @change="loadCalendarData">
+                                        <option value="my">Мои события</option>
+                                        <option value="team" :disabled="!isAdminOrManager">События команды</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Статус задач: </label>
+                                    <select x-model="calendarStatusFilter">
+                                        <option value="all">Все задачи</option>
+                                        <option value="new">Новые</option>
+                                        <option value="in_progress">В работе</option>
+                                        <option value="done">Выполненные</option>
+                                        <option value="cancelled">Отмененные</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Статус встреч: </label>
+                                    <select x-model="calendarMeetingFilter">
+                                        <option value="all">Все встречи</option>
+                                        <option value="active">Активные</option>
+                                        <option value="cancelled">Отмененные</option>
+                                    </select>
+                                </div>
+                                <button @click="resetCalendarFilters">Сбросить
+                                    фильтры</button>
+                            </div>
+                        </div>
+                        <!-- Месячный вид -->
+                        <div x-show="calendarView === 'month'">
+                            <h4>Месячный вид</h4>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th>Пн</th>
+                                        <th>Вт</th>
+                                        <th>Ср</th>
+                                        <th>Чт</th>
+                                        <th>Пт</th>
+                                        <th>Сб</th>
+                                        <th>Вс</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="week in calendarWeeks">
+                                        <tr>
+                                            <template x-for="day in week">
+                                                <td
+                                                    style="border: 1px solid #ccc; vertical-align: top; min-width: 100px; height: 80px;">
+                                                    <div><strong x-text="day ? new Date(day).getDate() : ''"></strong>
+                                                    </div>
+                                                    <div x-show="day" style="font-size: 11px; margin-top: 5px;">
+                                                        <template x-for="ev in getEventsByDay(day)">
+                                                            <div @click="openEventDetail(ev)"
+                                                                :style="'background: ' + getEventColor(ev) + '; cursor: pointer; margin: 2px 0; padding: 2px 4px; border-radius: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'">
+                                                                <span
+                                                                    x-text="ev.type === 'Задача' ? '📋' : '📅'"></span>
+                                                                <span
+                                                                    x-text="ev.title.length > 15 ? ev.title.slice(0,15)+'...' : ev.title"></span>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Дневной вид -->
+                        <div x-show="calendarView === 'day'">
+                            <h4>Детали дня</h4>
+                            <input type="date" x-model="selectedDate" @change="loadCalendarData">
+                            <div>
+                                <h5>События на <span x-text="selectedDate"></span></h5>
+                                <div style="font-size: 12px; padding: 5px; background: #f0f0f0; margin-bottom: 10px;">
+                                    <b>Активные фильтры:</b>
+                                    <span x-show="calendarStatusFilter !== 'all'">Статус задач: <span
+                                            x-text="calendarStatusFilter"></span></span>
+                                    <span x-show="calendarMeetingFilter !== 'all'"> | Встречи: <span
+                                            x-text="calendarMeetingFilter === 'active' ? 'Активные' : 'Отмененные'"></span></span>
+                                    <span x-show="calendarStatusFilter === 'all' && calendarMeetingFilter === 'all'">Все
+                                        события</span>
+                                </div>
+                                <template x-for="ev in getEventsByDay(selectedDate)">
+                                    <div @click="openEventDetail(ev)"
+                                        :style="'padding: 10px; margin: 8px 0; background: ' + getEventColor(ev) + '; border-radius: 5px; cursor: pointer;'">
+                                        <b><span x-text="ev.type === 'Задача' ? '📋 Задача:' : '📅 Встреча:'"></span>
+                                            <span x-text="ev.title"></span></b>
+                                        <div><span x-text="new Date(ev.date).toLocaleString()"></span></div>
+                                        <div x-show="ev.status">Статус: <span x-text="ev.status"></span></div>
+                                        <div x-show="ev.duration">Длительность: <span x-text="ev.duration"></span> мин
+                                        </div>
+                                        <div x-show="ev.is_active === false">Встреча отменена</div>
+                                    </div>
+                                </template>
+                                <div x-show="getEventsByDay(selectedDate).length === 0">Нет событий на этот день</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Детали задачи -->
+        <div x-show="selectedTask" @click.self="selectedTask=null">
+            <div>
+                <h3>Задача</h3>
+                <p><b>Описание:</b> <span x-text="selectedTask?.description"></span></p>
+                <p><b>Статус:</b> <span x-text="selectedTask?.status"></span></p>
+                <p><b>Дедлайн:</b> <span x-text="formatDate(selectedTask?.deadline)"></span></p>
+                <p><b>Исполнитель:</b> <span x-text="selectedTask?.executor_id"></span></p>
+                <p><b>Автор:</b> <span x-text="selectedTask?.author_id"></span></p>
+                <b>Комментарии:</b>
+                <div x-show="selectedTask?.comments?.length > 0">
+                    <template x-for="c in selectedTask.comments">
+                        <div>
+                            <span x-text="c.content"></span> (автор <span x-text="c.author_id"></span>)
+                        </div>
+                    </template>
+                </div>
+                <div x-show="isTaskExecutorAdminAuthor">
+                    <textarea placeholder="Новый комментарий" x-model="newCommentText"></textarea>
+                    <button @click="addCommentToTask">Отправить</button>
+                </div>
+                <div x-show="isTaskExecutorAdminAuthor && !(selectedTask.status === 'cancelled')">
+                    <b>Изменить статус:</b>
+                    <select x-model="selectedTask.status" @change="updateTaskStatus">
+                        <option value="new">new</option>
+                        <option value="in_progress">in_progress</option>
+                        <option value="done">done</option>
+                        <option value="cancelled">cancelled</option>
+                    </select>
+                </div>
+            </div>
+            <div x-show="isTaskAuthorOrAdmin">
+                <hr>
+                <h4>Редактировать задачу</h4>
+                <div>
+                    <label>Описание:</label>
+                    <input type="text" x-model="editTaskForm.description">
+                </div>
+                <div>
+                    <label>Дедлайн:</label>
+                    <input type="datetime-local" x-model="editTaskForm.deadline">
+                </div>
+                <div>
+                    <label>Исполнитель:</label>
+                    <select x-model="editTaskForm.executor_id">
+                        <option value="">Выберите исполнителя</option>
+                        <template x-for="m in teamMembers" :key="m.id">
+                            <option :value="m.id" x-text="m.name || m.email"></option>
+                        </template>
+                    </select>
+                </div>
+                <button @click="updateTask">Сохранить изменения</button>
+                <button @click="cancelEditTask">Отмена</button>
+            </div>
+            <button @click="closeEvent">Закрыть</button>
+        </div>
+        <!-- Детали встречи -->
+        <div x-show="selectedMeeting" @click.self="selectedMeeting=null">
+            <div>
+                <h3>Встреча</h3>
+                <p><b>Описание:</b> <span x-text="selectedMeeting?.description"></span></p>
+                <p><b>Начало:</b> <span x-text="formatDate(selectedMeeting?.start_time)"></span></p>
+                <p><b>Длительность:</b> <span x-text="selectedMeeting?.duration_m"></span> минут</p>
+                <p><b>Окончание:</b> <span x-text="formatDate(selectedMeeting?.end_time)"></span></p>
+                <p><b>Статус:</b>
+                    <span x-text="selectedMeeting?.is_active ? 'Активна' : 'Отменена'"></span>
+                    <span x-show="selectedMeeting?.is_finished"> (Завершена)</span>
+                </p>
+                <b>Участники:</b>
+                <div x-show="selectedMeeting?.members?.length > 0">
+                    <template x-for="m in selectedMeeting.members" :key="m.id">
+                        <div>
+                            <span x-text="m.name || m.email"></span>
+                            (роль: <span x-text="m.role"></span>)
+                        </div>
+                    </template>
+                </div>
+                <div x-show="canManageMeeting">
+                    <hr>
+                    <h4>Редактировать встречу</h4>
+                    <div>
+                        <label>Описание:</label>
+                        <textarea x-model="editMeetingForm.description" rows="2"></textarea>
+                    </div>
+                    <div>
+                        <label>Дата и время начала:</label>
+                        <input type="datetime-local" x-model="editMeetingForm.start_time">
+                    </div>
+                    <div>
+                        <label>Длительность (минут):</label>
+                        <input type="number" x-model="editMeetingForm.duration_m">
+                    </div>
+                    <div x-show="selectedMeeting?.members?.length > 0">
+                        <label>Удалить участников:</label>
+                        <select multiple x-model="editMeetingForm.remove_member_ids">
+                            <template x-for="m in selectedMeeting.members" :key="m.id">
+                                <option :value="m.id" x-text="m.name || m.email"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Добавить участников:</label>
+                        <select multiple x-model="editMeetingForm.new_member_ids">
+                            <template x-for="m in availableMembersForMeeting" :key="m.id">
+                                <option :value="m.id" x-text="m.name || m.email"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <button @click="updateMeeting">Сохранить изменения</button>
+                    <button @click="cancelEditMeeting">Отмена</button>
+
+                    <div>
+                        <button @click="cancelMeeting">Отменить встречу</button>
+                    </div>
+                </div>
+
+                <button @click="closeEvent">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

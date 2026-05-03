@@ -24,6 +24,8 @@ class TaskAdmin(ModelView, model=Task):
         Task.created_at,
         Task.updated_at,
         Task.id,
+        Task.comments,
+        Task.evaluation,
     ]
     column_searchable_list = [Task.description, "Executor", "Author"]
     column_filters = [

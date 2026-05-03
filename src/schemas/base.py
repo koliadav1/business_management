@@ -1,3 +1,5 @@
+from typing import Generic, List, TypeVar
+
 from fastapi import Query
 from pydantic import BaseModel, model_validator
 
@@ -24,3 +26,13 @@ class DateFilter(BaseModel):
                 "end_date must be greater than or equal to start_date"
             )
         return self
+
+
+T = TypeVar("T")
+
+
+class PaginatedRead(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    page_size: int

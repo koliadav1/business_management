@@ -38,6 +38,10 @@ class MeetingNotFoundError(NotFoundError):
     pass
 
 
+class CommentNotFoundError(NotFoundError):
+    pass
+
+
 class ConflictError(AppBaseException):
     status_code = 409
 
@@ -46,7 +50,15 @@ class UserNotInTeamError(ConflictError):
     pass
 
 
-class TeamAlreadyExistsError(ConflictError):
+class AlreadyExistsError(ConflictError):
+    pass
+
+
+class UserAlreadyExistsError(AlreadyExistsError):
+    pass
+
+
+class TeamAlreadyExistsError(AlreadyExistsError):
     pass
 
 
@@ -67,6 +79,10 @@ class MeetingAlreadyOverError(ConflictError):
 
 
 class TaskNotCompletedError(ConflictError):
+    pass
+
+
+class UserNotMemberOfMeetingError(ConflictError):
     pass
 
 

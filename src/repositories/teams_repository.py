@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.users import User, UserRole
@@ -38,23 +38,27 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         user_role: UserRole = UserRole.EMPLOYEE,
     ) -> None:
         """Добавить пользователя в команду"""
-        user.team_id = team.id
-        user.role = user_role
+        cur_user = await self._session.merge(user)
+        cur_user.team_id = team.id
+        cur_user.role = user_role
         await self._session.flush()
 
     async def remove_member(self, user: User) -> None:
         """Убрать пользователя из команды"""
-        user.team_id = None
-
-        if user.role != UserRole.ADMIN:
-            user.role = UserRole.USER
+        cur_user = await self._session.merge(user)
+        cur_user.team_id = None
+        cur_user.role = UserRole.USER
 
         await self._session.flush()
 
-    async def update_member_role(self, user: User, new_role: UserRole) -> None:
-        """Изменить роль члена команды"""
-        user.role = new_role
-        await self._session.flush()
+    async def remove_all_members(self, team_id: int) -> None:
+        """Убрать всех пользователей из команды"""
+        query = (
+            update(User)
+            .where(User.team_id == team_id)
+            .values(team_id=None, role=UserRole.USER)
+        )
+        await self._session.execute(query)
 
     async def is_members(
         self,
@@ -66,7 +70,7 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
         Являются ли пользователи членами команды
         с дополнительной проверкой по роли
         """
-        query = select(User).where(
+        query = select(User.id).where(
             User.id.in_(user_ids), User.team_id == team_id
         )
         if user_role:
@@ -77,3 +81,10 @@ class TeamsRepository(SQLRepository[Team], ITeamsRepository):
 
         invalid_users = list(set(user_ids) - set(valid_users))
         return invalid_users
+
+    async def get_by_invite_code(self, code: str) -> Team | None:
+        """Получить команду по коду приглашения"""
+        result = await self._session.execute(
+            select(Team).where(Team.invite_code == code)
+        )
+        return result.scalar_one_or_none()

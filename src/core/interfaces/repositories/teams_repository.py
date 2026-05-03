@@ -22,23 +22,21 @@ class ITeamsRepository(IRepository[Team]):
     @abstractmethod
     async def add_member(
         self,
-        team_id: int,
-        user_id: int,
+        team: Team,
+        user: User,
         user_role: UserRole = UserRole.EMPLOYEE,
-    ) -> bool:
+    ) -> None:
         """Добавить пользователя в команду"""
         pass
 
     @abstractmethod
-    async def remove_member(self, team_id: int, user_id: int) -> bool:
+    async def remove_member(self, user: User) -> None:
         """Убрать пользователя из команды"""
         pass
 
     @abstractmethod
-    async def update_member_role(
-        self, team_id: int, user_id: int, new_role: UserRole
-    ) -> bool:
-        """Изменить роль члена команды"""
+    async def remove_all_members(self, team_id: int) -> None:
+        """Убрать всех пользователей из команды"""
         pass
 
     @abstractmethod
@@ -52,4 +50,9 @@ class ITeamsRepository(IRepository[Team]):
         Являются ли пользователи членами команды
         с дополнительной проверкой по роли
         """
+        pass
+
+    @abstractmethod
+    async def get_by_invite_code(self, code: str) -> Team | None:
+        """Получить команду по коду приглашения"""
         pass

@@ -5,7 +5,6 @@ from src.core.exceptions import (
     UserNotFoundError,
     UserNotInTeamError,
 )
-from src.core.interfaces.unit_of_work import IUnitOfWork
 from src.models.users import User
 from src.models.tasks import Task
 
@@ -17,33 +16,27 @@ class CheckTeamLogic:
     """
 
     @staticmethod
-    async def check_user_team(
-        uow: IUnitOfWork, user_id1: User, user_id2: int
-    ) -> int:
-        if user_id1.team_id is None:
-            raise ForbiddenError(f"User {user_id1} is not in a team")
+    def check_user_team(user1: User, user2: User) -> int:
+        if user1.team_id is None:
+            raise ForbiddenError(f"User {user1.id} is not in a team")
 
-        executor = await uow.users_repo.get(user_id2)
-        if not executor:
-            raise UserNotFoundError(f"User with id {user_id2} not found")
+        if not user2:
+            raise UserNotFoundError("User not found")
 
-        if user_id1.team_id != executor.team_id:
+        if user1.team_id != user2.team_id:
             raise UserNotInTeamError(
-                f"User {user_id2} is not in the same team as {user_id1}"
+                f"User {user2.id} is not in the same team as {user1.id}"
             )
 
-        return user_id1.team_id
+        return user1.team_id
 
     @staticmethod
-    async def check_task_team(
-        uow: IUnitOfWork, admin_user: User, task_id: int
-    ) -> Task:
+    def check_task_team(admin_user: User, task: Task) -> None:
         if admin_user.team_id is None:
             raise ForbiddenError("Admin is not in a team")
 
-        task = await uow.tasks_repo.get(task_id)
         if not task:
-            raise TaskNotFoundError(f"Task with id {task_id} not found")
+            raise TaskNotFoundError("Task not found")
 
         if admin_user.team_id != task.team_id:
             raise TaskNotInTeamError(

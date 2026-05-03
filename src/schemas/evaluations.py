@@ -21,10 +21,12 @@ class EvaluationUpdate(EvaluationBase):
     pass
 
 
-class EvaluationRead(EvaluationBase):
+class EvaluationRead(BaseModel):
     id: int
     task_id: int
     rater_id: int
+    rating: int
+    comment: str | None
     created_at: UtcDateTime
     updated_at: UtcDateTime
 
@@ -32,7 +34,7 @@ class EvaluationRead(EvaluationBase):
 
 
 class EvaluationWithTaskRead(BaseModel):
-    evaluation: EvaluationRead
+    evaluation: EvaluationRead | None
     task: TaskRead
 
 
