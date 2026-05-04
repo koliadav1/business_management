@@ -106,7 +106,7 @@ class CommentService:
 
             if (
                 current_user.id != comment.author_id
-                or current_user.role != UserRole.ADMIN
+                and current_user.role != UserRole.ADMIN
             ):
                 raise ForbiddenError("You can't edit this comment")
 
