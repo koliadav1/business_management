@@ -522,14 +522,27 @@
                 <p><b>Автор:</b> <span x-text="selectedTask?.author_id"></span></p>
                 <b>Комментарии:</b>
                 <div x-show="selectedTask?.comments?.length > 0">
-                    <template x-for="c in selectedTask.comments">
+                    <template x-for="c in selectedTask.comments" :key="c.id">
                         <div>
-                            <span x-text="c.content"></span> (автор <span x-text="c.author_id"></span>)
+                            <div x-show="!c.isEditing">
+                                <div><strong x-text="c.content"></strong></div>
+                                <div><small>Автор: <span x-text="c.author_id"></span></small></div>
+                                <div x-show="currentUser?.role === 'admin' || c.author_id === currentUser?.id">
+                                    <button
+                                        @click="c.isEditing = true; editingCommentText = c.content">Редактировать</button>
+                                    <button @click="deleteComment(c.id)">Удалить</button>
+                                </div>
+                            </div>
+                            <div x-show="c.isEditing">
+                                <textarea x-model="editingCommentText" rows="2"></textarea>
+                                <button @click="updateCommentInline(c)">Сохранить</button>
+                                <button @click="c.isEditing = false">Отмена</button>
+                            </div>
                         </div>
                     </template>
                 </div>
                 <div x-show="isTaskExecutorAdminAuthor">
-                    <textarea placeholder="Новый комментарий" x-model="newCommentText"></textarea>
+                    <textarea placeholder="Новый комментарий" x-model="newCommentText" rows="2"></textarea>
                     <button @click="addCommentToTask">Отправить</button>
                 </div>
                 <div x-show="isTaskExecutorAdminAuthor && !(selectedTask.status === 'cancelled')">
