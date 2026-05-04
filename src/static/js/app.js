@@ -20,7 +20,7 @@ function app() {
         // Задачи
         myTasks: [], teamTasks: [], newTaskDesc: '', newTaskDeadline: '', newTaskExecutorId: '',
         newCommentText: '',
-        secelctedTask: null,
+        selectedTask: null,
         lastValidStatus: '',
         editTaskForm: { description: '', deadline: '', executor_id: '' },
         taskFilters: {
@@ -28,6 +28,7 @@ function app() {
             deadline_from: '',
             deadline_to: ''
         },
+        editingCommentText: '',
         // Оценки
         myEvaluations: [], rateTaskId: '', rateValue: 5, rateComment: '', rateableTasks: [],
         ratingStats: null,
@@ -714,6 +715,29 @@ function app() {
             this.newCommentText = '';
             await this.openTaskDetail(this.selectedTask);
         },
+        async updateCommentInline(comment) {
+            if (!this.editingCommentText) return;
+            const res = await this.fetchWithAuth(`/comments/${comment.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ content: this.editingCommentText })
+            });
+            if (res.ok) {
+                comment.content = this.editingCommentText;
+                comment.isEditing = false;
+                this.editingCommentText = '';
+            } else {
+                alert('Ошибка обновления');
+            }
+        },
+        async deleteComment(commentId) {
+            if (!confirm('Удалить этот комментарий?')) return;
+            const res = await this.fetchWithAuth(`/comments/${commentId}`, { method: 'DELETE' });
+            if (res.ok) {
+                this.selectedTask.comments = this.selectedTask.comments.filter(c => c.id !== commentId);
+            } else {
+                alert('Ошибка удаления');
+            }
+        },
         async updateTaskStatus() {
             const taskId = this.selectedTask.id;
             const newStatus = this.selectedTask.status;
@@ -1160,7 +1184,7 @@ function app() {
         get isTaskExecutorAdminAuthor() { return this.selectedTask && (this.selectedTask.executor_id === this.currentUser?.id || this.currentUser?.role === 'admin' || this.selectedTask.author_id === this.currentUser?.id); },
         get isTaskAuthorOrAdmin() {
             if (!this.selectedTask) return false;
-            if (this.secelctedTask.status === 'cancelled') return false;
+            if (this.selectedTask.status === 'cancelled') return false;
             return (this.selectedTask.author_id === this.currentUser?.id || this.currentUser?.role === 'admin');
         },
         get canManageMeeting() {
